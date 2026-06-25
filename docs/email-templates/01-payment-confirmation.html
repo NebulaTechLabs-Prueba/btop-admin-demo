@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Payment Confirmation — BTOP Rentals</title>
+<link rel="stylesheet" href="_shared.css"></head>
+<body>
+  <div class="wrap">
+    <p class="muted">Subject: Reservation Confirmed — {{invoice}}</p>
+    <div class="card">
+      <div class="hdr">
+        <div class="logo">BTOP<small>RENTALS</small></div>
+        <span class="badge ok">✓ PAYMENT APPROVED</span>
+      </div>
+      <div class="body">
+        <h1>Hi {{client_name}},</h1>
+        <p>Great news — your payment has been approved and your reservation is confirmed. Here are the details for your records:</p>
+        <table class="tbl">
+          <tr><td>Order</td><td>{{order_number}}</td></tr>
+          <tr><td>Invoice</td><td>{{invoice}}</td></tr>
+          <tr><td>Item</td><td>{{item}}</td></tr>
+          <tr><td>Dates</td><td>{{startDate}} → {{endDate}} ({{days}} days)</td></tr>
+          <tr><td>Payment method</td><td>{{payment_method}}</td></tr>
+          <tr><td>Deposit paid</td><td>{{deposit}}</td></tr>
+          <tr><td>Total</td><td>{{total}}</td></tr>
+          <tr><td>Remaining at delivery</td><td>{{remaining}}</td></tr>
+        </table>
+        <p>Your signed rental agreement is attached in a separate email. Keep this message as proof of your booking. To make changes, contact us before the start date.</p>
+        <a class="btn" href="#">View my rentals</a>
+      </div>
+      <div class="ft">BTOP Rentals · 9807 Mines Rd #9, Laredo TX 78045<br>(469) 690-7112 · btoprentals@gmail.com</div>
+    </div>
+  </div>
+</body></html>

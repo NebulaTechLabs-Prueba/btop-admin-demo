@@ -1,0 +1,25 @@
+/* Shared mockup styling for email previews (inline these per-block for real email clients) */
+body{margin:0;background:#eef2f7;font-family:'Segoe UI',Arial,sans-serif;color:#1c2b3a;padding:24px}
+.wrap{max-width:600px;margin:0 auto}
+.card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(11,37,69,.12)}
+.hdr{background:#0a1628;color:#fff;padding:28px 32px}
+.hdr .logo{font-size:22px;font-weight:800;letter-spacing:3px}
+.hdr .logo small{display:block;font-size:10px;letter-spacing:4px;opacity:.7;font-weight:600}
+.badge{display:inline-block;margin-top:14px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.5px}
+.badge.ok{background:#10b981;color:#fff}
+.badge.wait{background:#f59e0b;color:#fff}
+.badge.rej{background:#ef4444;color:#fff}
+.body{padding:32px}
+.body h1{font-size:20px;margin:0 0 12px}
+.body p{font-size:14px;line-height:1.65;color:#475569;margin:0 0 14px}
+.tbl{width:100%;border-collapse:collapse;margin:18px 0;font-size:13px}
+.tbl td{padding:9px 12px;border-bottom:1px solid #eef2f7}
+.tbl td:first-child{color:#64748b}
+.tbl td:last-child{text-align:right;font-weight:600}
+.items{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:16px 0}
+.items .it{display:flex;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #eef2f7;font-size:13px}
+.items .it:last-child{border-bottom:0}
+.attach{display:flex;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;font-size:13px;color:#1d4ed8;font-weight:600;margin:16px 0}
+.btn{display:inline-block;background:#1b4ddb;color:#fff;text-decoration:none;padding:12px 26px;border-radius:10px;font-weight:700;font-size:14px;margin-top:8px}
+.ft{padding:22px 32px;background:#f8fafc;border-top:1px solid #eef2f7;font-size:11px;color:#94a3b8;text-align:center;line-height:1.7}
+.muted{font-size:11px;color:#94a3b8;text-align:center;margin-top:14px}

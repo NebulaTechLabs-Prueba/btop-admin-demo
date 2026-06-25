@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Rental Agreement — BTOP Rentals</title>
+<link rel="stylesheet" href="_shared.css"></head>
+<body>
+  <div class="wrap">
+    <p class="muted">Subject: Your Rental Agreement {{contract_number}} — BTOP Rentals</p>
+    <div class="card">
+      <div class="hdr">
+        <div class="logo">BTOP<small>RENTALS</small></div>
+        <span class="badge ok">📄 AGREEMENT ENCLOSED</span>
+      </div>
+      <div class="body">
+        <h1>Hi {{client_name}},</h1>
+        <p>Your payment has been approved. Please find attached your Equipment Rental Agreement covering order <strong>{{order_number}}</strong>, including the itemized equipment schedule (Exhibit A).</p>
+        <div class="attach">📎 {{contract_number}}.pdf — Equipment Rental Agreement</div>
+        <p style="font-weight:600;color:#1c2b3a;margin-bottom:6px">Exhibit A — Schedule of Leased Property</p>
+        <div class="items">
+          <div class="it"><span>{{items}} <em style="color:#94a3b8">(itemized list of vehicles / equipment / services)</em></span><span></span></div>
+        </div>
+        <table class="tbl">
+          <tr><td>Rental subtotal</td><td>{{subtotal}}</td></tr>
+          <tr><td>Security deposits</td><td>{{deposit_total}}</td></tr>
+          <tr><td>Total</td><td>{{total}}</td></tr>
+          <tr><td>Approved on</td><td>{{approved_date}}</td></tr>
+        </table>
+        <p>Please review, sign, and keep a copy. This agreement is governed by the laws of the State of Texas.</p>
+        <a class="btn" href="#">Download agreement (PDF)</a>
+      </div>
+      <div class="ft">BTOP Rentals · 9807 Mines Rd #9, Laredo TX 78045<br>(469) 690-7112 · btoprentals@gmail.com</div>
+    </div>
+  </div>
+</body></html>

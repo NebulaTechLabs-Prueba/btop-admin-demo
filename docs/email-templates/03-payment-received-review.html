@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Payment Under Review — BTOP Rentals</title>
+<link rel="stylesheet" href="_shared.css"></head>
+<body>
+  <div class="wrap">
+    <p class="muted">Subject: We received your payment report — {{order_number}}</p>
+    <div class="card">
+      <div class="hdr">
+        <div class="logo">BTOP<small>RENTALS</small></div>
+        <span class="badge wait">⏳ UNDER REVIEW</span>
+      </div>
+      <div class="body">
+        <h1>Hi {{client_name}},</h1>
+        <p>Thanks! We received your <strong>{{payment_method}}</strong> payment report for order <strong>{{order_number}}</strong>. Our team will verify it shortly. Once approved, you'll receive your confirmation and rental agreement by email.</p>
+        <table class="tbl">
+          <tr><td>Order</td><td>{{order_number}}</td></tr>
+          <tr><td>Item</td><td>{{item}}</td></tr>
+          <tr><td>Amount reported</td><td>{{deposit}}</td></tr>
+        </table>
+        <p>No action is needed from you right now. Pending orders are held for up to 30 days awaiting validation. Questions? Call us at (469) 690-7112.</p>
+      </div>
+      <div class="ft">BTOP Rentals · 9807 Mines Rd #9, Laredo TX 78045<br>(469) 690-7112 · btoprentals@gmail.com</div>
+    </div>
+  </div>
+</body></html>
