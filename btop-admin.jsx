@@ -19,7 +19,7 @@ const FLEET = [
 ];
 const USERS_INIT = [
   { email:"admin@btop.com", pw:"admin123", role:"admin", name:"Admin BTOP" },
-  { email:"cliente@test.com", pw:"test123", role:"client", name:"Juan Pérez" },
+  { email:"cliente@test.com", pw:"test123", role:"client", name:"Juan Perez" },
   { email:"sede@btop.com", pw:"sede123", role:"sede", name:"Headquarters Agent" },
 ];
 
@@ -423,7 +423,7 @@ function FleetMod({fleet,setFleet,bookings=[],orders=[]}){
   const tabs=[{id:"vehicles",l:"Vehicles",c:fleet.length},{id:"pricing",l:"Pricing",c:fleet.length}];
   /* When admin clicks delete: gather affected scope + check active reservations */
   const today=new Date().toISOString().split("T")[0];
-  const isLive=(status)=>["Reserved","Confirmed","Activado","Delivered","Active","Pending"].includes(status);
+  const isLive=(status)=>["Reserved","Confirmed","Active","Delivered","Pending"].includes(status);
   const askDelete=(v)=>{
     const sameModel=fleet.filter(x=>x.year===v.year&&x.name===v.name&&(x.category||x.cat)===(v.category||v.cat));
     const sameModelIds=new Set(sameModel.map(x=>x.id));
@@ -901,15 +901,15 @@ function MaintenanceMod({fleet,spaces,bookings=[],setBookings,onViewUnit}){
       {/* CONFIRM END MAINTENANCE */}
       {confirmEnd&&<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"><div className="bg-white w-full max-w-md rounded-2xl p-6">
         <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 text-2xl">⚠️</div>
-        <h3 className="text-lg font-bold text-center mb-2">¿Está seguro que desea finalizar el mantenimiento?</h3>
-        <p className="text-sm text-stone-600 text-center mb-4 leading-relaxed">Esta es una operación compleja. Al confirmar, la unidad volverá al estado <strong>disponible</strong> inmediatamente y podrá ser alquilada. Asegúrese de que el mantenimiento fue completado y verificado.</p>
+        <h3 className="text-lg font-bold text-center mb-2">End this maintenance?</h3>
+        <p className="text-sm text-stone-600 text-center mb-4 leading-relaxed">This is a sensitive operation. On confirm, the unit returns to <strong>available</strong> immediately and can be rented. Make sure the maintenance was completed and verified.</p>
         <div className="bg-stone-50 rounded-lg p-3 mb-4 text-xs">
           <div className="font-bold text-stone-800 mb-1">{confirmEnd.vname||"Vehicle"} {(()=>{const v=fleet.find(f=>f.id===confirmEnd.vid);return v?.plate?<span className="font-mono bg-white px-1.5 py-0.5 rounded ml-1 text-blue-700">{v.plate}</span>:null})()}</div>
-          <div className="text-stone-500">Motivo: {confirmEnd.reason||"—"}</div>
-          <div className="text-stone-500">Periodo: {confirmEnd.start} → {confirmEnd.end}</div>
-          {confirmEnd.isDamage&&<div className="text-red-600 font-semibold mt-1">⚠ Reporte de daño — verificar reparación antes de cerrar</div>}
+          <div className="text-stone-500">Reason: {confirmEnd.reason||"—"}</div>
+          <div className="text-stone-500">Period: {confirmEnd.start} → {confirmEnd.end}</div>
+          {confirmEnd.isDamage&&<div className="text-red-600 font-semibold mt-1">⚠ Damage report — verify the repair before closing</div>}
         </div>
-        <div className="flex gap-3"><button onClick={()=>setConfirmEnd(null)} className="flex-1 px-4 py-2.5 border border-stone-200 rounded-full text-sm font-semibold">Cancelar</button><button onClick={()=>{endMaint(confirmEnd);setConfirmEnd(null)}} className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-full text-sm font-semibold">Sí, finalizar</button></div>
+        <div className="flex gap-3"><button onClick={()=>setConfirmEnd(null)} className="flex-1 px-4 py-2.5 border border-stone-200 rounded-full text-sm font-semibold">Cancel</button><button onClick={()=>{endMaint(confirmEnd);setConfirmEnd(null)}} className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-full text-sm font-semibold">Yes, end it</button></div>
       </div></div>}
 
       {scheduledFM.length>0&&<div className="mt-4"><SC title={`Scheduled (${scheduledFM.length})`} padded={false}>
@@ -1029,7 +1029,7 @@ function ReservationsMod({orders,setOrders,fleetBookings=[],emailTemplate,setEma
 
   const reservations=orders.filter(o=>o.phase==="reservation"||!o.phase);
   const filtered=filter==="all"?reservations:reservations.filter(o=>o.status===filter);
-  const stats={reserved:reservations.filter(o=>o.status==="Reserved").length,confirmed:reservations.filter(o=>o.status==="Confirmed").length,delivered:reservations.filter(o=>o.status==="Activado").length,completed:reservations.filter(o=>o.status==="Completed").length,cancelled:reservations.filter(o=>o.status==="Cancelled").length};
+  const stats={reserved:reservations.filter(o=>o.status==="Reserved").length,confirmed:reservations.filter(o=>o.status==="Confirmed").length,delivered:reservations.filter(o=>o.status==="Active").length,completed:reservations.filter(o=>o.status==="Completed").length,cancelled:reservations.filter(o=>o.status==="Cancelled").length};
   const updateStatus=(oid,ns)=>setOrders(p=>p.map(o=>o.oid===oid?{...o,status:ns}:o));
   /* Confirm + send email in one step */
   const confirmAndEmail=(o)=>{
@@ -1098,11 +1098,11 @@ function ReservationsMod({orders,setOrders,fleetBookings=[],emailTemplate,setEma
         description:"Reservations approved by admin and ready to be activated when the customer picks up the vehicle/space.",
         items:reservations.filter(o=>o.status==="Confirmed").map(o=>({title:`${o.invNum||o.oid} · ${o.un}`,subtitle:`${o.un2||o.un} · ${typeof o.sd==="string"?o.sd:""} → ${typeof o.ed==="string"?o.ed:""}`,value:`$${(o.reservationPaid||o.dp||0).toFixed(0)}`}))
       }}/>
-      <St label="Activado" value={stats.delivered} icon={Truck} breakdown={{
-        formula:"orders where status === 'Activado'",
+      <St label="Active" value={stats.delivered} icon={Truck} breakdown={{
+        formula:"orders where status === 'Active'",
         source:"Reservations table",
         description:"Reservations marked as activated — the customer has picked up the item and the rental is in progress.",
-        items:reservations.filter(o=>o.status==="Activado").map(o=>({title:`${o.invNum||o.oid} · ${o.un}`,subtitle:`${o.un2||o.un} · ${typeof o.sd==="string"?o.sd:""} → ${typeof o.ed==="string"?o.ed:""}`,value:`$${(o.tp||0).toFixed(0)}`}))
+        items:reservations.filter(o=>o.status==="Active").map(o=>({title:`${o.invNum||o.oid} · ${o.un}`,subtitle:`${o.un2||o.un} · ${typeof o.sd==="string"?o.sd:""} → ${typeof o.ed==="string"?o.ed:""}`,value:`$${(o.tp||0).toFixed(0)}`}))
       }}/>
       <St label="Completed" value={stats.completed} icon={FileCheck} trend="up" breakdown={{
         formula:"orders where status === 'Completed'",
@@ -1117,7 +1117,7 @@ function ReservationsMod({orders,setOrders,fleetBookings=[],emailTemplate,setEma
         items:reservations.filter(o=>o.status==="Cancelled").map(o=>({title:`${o.invNum||o.oid} · ${o.un}`,subtitle:`${o.un2||o.un} · ${typeof o.sd==="string"?o.sd:""} → ${typeof o.ed==="string"?o.ed:""}`,value:"cancelled"}))
       }}/>
     </div>
-    <div className="flex gap-2 mb-4 flex-wrap">{["all","Reserved","Confirmed","Activado","Completed","Cancelled"].map(f=><button key={f} onClick={()=>setFilter(f)} className={`px-4 py-2 rounded-full text-sm font-medium ${filter===f?(f==="Cancelled"?"bg-red-600 text-white":"bg-blue-900 text-white"):"bg-white border border-stone-200"}`}>{f==="all"?"All":f} {f!=="all"?reservations.filter(o=>o.status===f).length:reservations.length}</button>)}</div>
+    <div className="flex gap-2 mb-4 flex-wrap">{["all","Reserved","Confirmed","Active","Completed","Cancelled"].map(f=><button key={f} onClick={()=>setFilter(f)} className={`px-4 py-2 rounded-full text-sm font-medium ${filter===f?(f==="Cancelled"?"bg-red-600 text-white":"bg-blue-900 text-white"):"bg-white border border-stone-200"}`}>{f==="all"?"All":f} {f!=="all"?reservations.filter(o=>o.status===f).length:reservations.length}</button>)}</div>
     </>}
 
     {view==="active"&&<div className="flex gap-6">
@@ -1130,7 +1130,7 @@ function ReservationsMod({orders,setOrders,fleetBookings=[],emailTemplate,setEma
             <div><div className="text-sm font-medium">{o.un2||o.un||"Vehicle"}</div><div className="text-[10px] text-stone-400">{o.ut||""}</div></div>,
             <span className="text-xs">{o.sd?new Date(o.sd).toLocaleDateString("en-US",{month:"short",day:"numeric"}):"—"} → {o.ed?new Date(o.ed).toLocaleDateString("en-US",{month:"short",day:"numeric"}):"—"}</span>,
             <span className="font-semibold text-emerald-700">{$f(o.reservationPaid||o.dp||0)}</span>,
-            <Pill tone={o.status==="Reserved"?"amber":o.status==="Confirmed"?"blue":o.status==="Activado"?"emerald":o.status==="Cancelled"?"red":"stone"}>{o.status}</Pill>,
+            <Pill tone={o.status==="Reserved"?"amber":o.status==="Confirmed"?"blue":o.status==="Active"?"emerald":o.status==="Cancelled"?"red":"stone"}>{o.status}</Pill>,
             <button onClick={()=>setSel(o)} className="p-1.5 hover:bg-stone-100 rounded-lg"><MoreHorizontal className="w-3.5 h-3.5"/></button>,
           ])}/>}
         </SC>
@@ -1159,7 +1159,7 @@ function ReservationsMod({orders,setOrders,fleetBookings=[],emailTemplate,setEma
             <div className="flex flex-col gap-2">
               {sel.status==="Reserved"&&<button onClick={()=>confirmAndEmail(sel)} className="w-full py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2"><Mail className="w-4 h-4"/>Confirm & Send Email ✓</button>}
               {sel.status==="Confirmed"&&<>
-                <button onClick={()=>{updateStatus(sel.oid,"Activado");setSel({...sel,status:"Activado"})}} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold">Marcar como Activado</button>
+                <button onClick={()=>{updateStatus(sel.oid,"Active");setSel({...sel,status:"Active"})}} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold">Mark as Active</button>
                 <button onClick={()=>{const e=sendConfirmationEmail&&sendConfirmationEmail(sel);if(e)setEmailPreview(e)}} className="w-full py-2 bg-stone-50 text-stone-700 border border-stone-200 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-2"><Mail className="w-3.5 h-3.5"/>Resend confirmation email</button>
               </>}
               {(sel.status==="Reserved"||sel.status==="Confirmed")&&<button onClick={()=>{updateStatus(sel.oid,"Cancelled");setSel({...sel,status:"Cancelled"})}} className="w-full py-2 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs font-semibold">Cancel Reservation</button>}
@@ -1198,7 +1198,7 @@ function ReservationsMod({orders,setOrders,fleetBookings=[],emailTemplate,setEma
         <div className="bg-white border border-stone-200 rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center">
           <input value={hSearch} onChange={e=>{setHSearch(e.target.value);setHPage(1)}} placeholder="🔍 Search by client, email, invoice, plate..." className="flex-1 min-w-[220px] px-3 py-2 border border-stone-200 rounded-lg text-sm"/>
           <select value={hStatusFilter} onChange={e=>{setHStatusFilter(e.target.value);setHPage(1)}} className="px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white">
-            <option value="all">All statuses</option><option>Reserved</option><option>Confirmed</option><option>Activado</option><option>Completed</option><option>Cancelled</option>
+            <option value="all">All statuses</option><option>Reserved</option><option>Confirmed</option><option>Active</option><option>Completed</option><option>Cancelled</option>
           </select>
           {(hSearch||hStatusFilter!=="all")&&<button onClick={()=>{setHSearch("");setHStatusFilter("all");setHPage(1)}} className="px-3 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600">✕ Clear</button>}
           <span className="text-xs text-stone-500 ml-auto">{h.length} of {reservations.length} total</span>
@@ -1214,7 +1214,7 @@ function ReservationsMod({orders,setOrders,fleetBookings=[],emailTemplate,setEma
             <span className="text-xs">{typeof o.sd==="string"?o.sd:o.sd?.toLocaleDateString?.("en-US",{month:"short",day:"numeric"})||"—"} → {typeof o.ed==="string"?o.ed:o.ed?.toLocaleDateString?.("en-US",{month:"short",day:"numeric"})||"—"}</span>,
             <span className="font-semibold text-stone-700">{$f(o.tp||0)}</span>,
             <span className="font-semibold text-emerald-700">{$f(o.reservationPaid||o.dp||0)}</span>,
-            <Pill tone={o.status==="Reserved"?"amber":o.status==="Confirmed"?"blue":o.status==="Activado"?"emerald":o.status==="Cancelled"?"red":"stone"}>{o.status}</Pill>,
+            <Pill tone={o.status==="Reserved"?"amber":o.status==="Confirmed"?"blue":o.status==="Active"?"emerald":o.status==="Cancelled"?"red":"stone"}>{o.status}</Pill>,
             <button onClick={()=>{setView("active");setSel(o);setFilter("all")}} className="text-xs font-semibold text-blue-700 hover:underline">View →</button>,
           ])}/>}
         </SC>
@@ -1350,7 +1350,7 @@ function SettlementMod({orders,setOrders,deliveries,fleet=[]}){
   const [sel,setSel]=useState(null);
   const [editMode,setEditMode]=useState(false);
   const [sf,setSf]=useState({extraCharges:0,extraDesc:"",mileageActual:0,fuelCharge:0,damageCharge:0,discount:0,notes:""});
-  const pending=orders.filter(o=>o.status==="Activado"&&!o.settlementPaid);
+  const pending=orders.filter(o=>o.status==="Active"&&!o.settlementPaid);
   const completed=orders.filter(o=>o.settlementPaid);
   /* Fuel level → fraction (Full=1, 3/4=.75, 1/2=.5, 1/4=.25, Empty=0) */
   const fuelFractions={"Empty":0,"1/4":0.25,"1/2":0.5,"3/4":0.75,"Full":1};
@@ -1424,7 +1424,7 @@ function SettlementMod({orders,setOrders,deliveries,fleet=[]}){
       <div className={`${sel?"w-1/2":"flex-1"} transition-all`}>
         {/* PENDING */}
         <SC title={`Pending Settlement (${pending.length})`} padded={false}>
-          {pending.length===0?<div className="text-center py-12 text-stone-400"><DollarSign className="w-8 h-8 mx-auto mb-2"/><p>No pending settlements</p><p className="text-xs mt-1">Reservations marked as "Activado" will appear here</p></div>
+          {pending.length===0?<div className="text-center py-12 text-stone-400"><DollarSign className="w-8 h-8 mx-auto mb-2"/><p>No pending settlements</p><p className="text-xs mt-1">Reservations marked as "Active" will appear here</p></div>
           :<DT headers={["Invoice","Client","Vehicle","Rental","Deposit Paid","Balance",""]} rows={pending.map(o=>[
             <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{o.invNum||o.oid}</span>,
             <span className="font-medium text-sm">{o.un||"—"}</span>,
@@ -1627,7 +1627,7 @@ function ContactsMod({contacts:propContacts,setContacts:propSetContacts,orders=[
     setTimeout(()=>setPwSent(false),3500);
   };
   /* Live orders that block deletion */
-  const liveStatuses=["Reserved","Confirmed","Activado","Delivered","Active","Pending"];
+  const liveStatuses=["Reserved","Confirmed","Active","Delivered","Pending"];
   const liveOrdersFor=(c)=>orders.filter(o=>o.ue===c.email&&liveStatuses.includes(o.status));
   const doDisable=(c)=>{
     setContacts(p=>p.map(x=>x.id===c.id?{...x,disabled:true,disabledAt:new Date().toISOString(),disabledBy:"admin"}:x));
@@ -2336,7 +2336,7 @@ function DashMod({nav,fleet,spaces,orders=[],bookings=[]}){
   const act=admSeedBookings.filter(b=>b.status==="active");
   /* Real numbers */
   const today=new Date().toISOString().split("T")[0];
-  const liveStatuses=["Reserved","Confirmed","Activado","Delivered","Active","Pending"];
+  const liveStatuses=["Reserved","Confirmed","Active","Delivered","Pending"];
   const activeFleetOrders=orders.filter(o=>!String(o.uid||"").startsWith("sp-")&&liveStatuses.includes(o.status)&&(typeof o.sd==="string"?o.sd:o.sd?.toISOString?.().split("T")[0]||"")<=today&&(typeof o.ed==="string"?o.ed:o.ed?.toISOString?.().split("T")[0]||"")>=today);
   const activeSpaceOrders=orders.filter(o=>String(o.uid||"").startsWith("sp-")&&liveStatuses.includes(o.status));
   const totalRevenue=orders.filter(o=>o.status!=="Cancelled").reduce((s,o)=>s+(o.tp||0)+(o.dp||0),0);
@@ -2349,13 +2349,13 @@ function DashMod({nav,fleet,spaces,orders=[],bookings=[]}){
       <div className="mb-6"><h2 className="text-2xl font-semibold">Welcome back, Admin 👋</h2><p className="text-stone-600 text-sm mt-1">BTOP Rentals operations overview.</p></div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <St label="Active Rentals" value={activeFleetOrders.length} delta={`${availFleet.length} available`} trend="up" icon={Truck} breakdown={{
-          formula:"orders where item is a vehicle, status is live (Reserved/Confirmed/Activado/Delivered/Active/Pending), and today is between start and end dates",
+          formula:"orders where item is a vehicle, status is live (Reserved/Confirmed/Active/Delivered/Active/Pending), and today is between start and end dates",
           source:"Pulled from the global Reservations table (orders) — same data shown in the Reservations panel.",
           description:"Counts every fleet rental currently in progress. Available count below shows vehicles with status='available' in the Fleet table.",
           items:activeFleetOrders.map(o=>({title:`${o.un2||o.un||"Vehicle"} · ${o.invNum||o.oid}`,subtitle:`${o.un} · ${(typeof o.sd==="string"?o.sd:"")} → ${(typeof o.ed==="string"?o.ed:"")} · ${o.status}`,value:`$${((o.tp||0)+(o.dp||0)).toFixed(0)}`}))
         }}/>
         <St label="Space Leases" value={activeSpaceOrders.length} delta={`${availSpaces.length} open`} trend="up" icon={Warehouse} breakdown={{
-          formula:"orders where uid starts with 'sp-' and status is live (Reserved/Confirmed/Activado/etc.)",
+          formula:"orders where uid starts with 'sp-' and status is live (Reserved/Confirmed/Active/etc.)",
           source:"Cross-references the Reservations table with the Storage Spaces table.",
           description:"Counts every active storage lease. Open count shows spaces with status='available' in the Storage Spaces panel.",
           items:activeSpaceOrders.map(o=>({title:`${o.un||"Space"} · ${o.invNum||o.oid}`,subtitle:`${o.un||"—"} · ${(typeof o.sd==="string"?o.sd:"")} → ${(typeof o.ed==="string"?o.ed:"")} · ${o.status}`,value:`$${((o.tp||0)+(o.dp||0)).toFixed(0)}`}))
@@ -2511,7 +2511,7 @@ function dep(u,days){return days>=28?u.depM:days>=7?u.depW:u.depD}
 const modelKey=(u)=>`${u.year}__${u.name}__${u.cat||u.category||""}`;
 const dateToStr=(d)=>d instanceof Date?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`:d;
 /* Active statuses that consume inventory (block the unit). Cancelled/Completed don't consume. */
-const LIVE_ORDER_STATUSES=["Reserved","Confirmed","Activado","Delivered","Active","Pending"];
+const LIVE_ORDER_STATUSES=["Reserved","Confirmed","Active","Delivered","Pending"];
 const unitFreeInRange=(unit,bookings,sd,ed,cart=[],orders=[])=>{
   if(!sd||!ed)return true;
   const sStr=dateToStr(sd),eStr=dateToStr(ed);
@@ -2873,7 +2873,7 @@ function CartsMod({carts,setCarts,contacts=[]}){
   </div>;
 }
 
-/* ═══ ADMIN · PEDIDOS & VALIDACIÓN DE PAGOS ═══ */
+/* ═══ ADMIN · ORDERS & PAYMENT VALIDATION ═══ */
 function OrdersPayMod({orders,setOrders,approveOrder,rejectOrder}){
   const [tab,setTab]=useState("pending");
   const [q,setQ]=useState("");
@@ -3204,7 +3204,7 @@ export default function App(){
     {oid:"ORD-CREDIT1",invNum:"INV-0096",status:"Confirmed",payState:"approved",phase:"reservation",od:"2026-04-01",approvedAt:"2026-04-01T00:00:00.000Z",un:"Roberto Perez",ue:"roberto@email.com",un2:"Ottawa Yard Spotter",uid:"v1",plate:"TX-990",ut:"Monthly yard spotter",sd:"2026-04-05",ed:"2026-05-05",days:30,qty:1,tp:3800,dp:500,reservationPaid:500,mr:0,miles:0,payMethod:"invoice",ui:"🚛",settlementPaid:false,settlementTotal:0},
     {oid:"ORD-ABC123",invNum:"INV-0097",status:"Confirmed",phase:"reservation",od:"2026-04-05",un:"Carlos Mendez",ue:"carlos@email.com",un2:"Freightliner Cascadia",uid:"v2",plate:"TX-16000",ut:"Regional hauling daycab.",sd:"2026-04-10",ed:"2026-04-24",days:14,qty:1,tp:2310,dp:500,reservationPaid:500,mr:0.15,miles:0,payMethod:"Stripe",ui:"🚚",settlementPaid:false,settlementTotal:0},
     {oid:"ORD-DEF456",invNum:"INV-0098",status:"Confirmed",phase:"reservation",od:"2026-04-08",un:"Laura Vega",ue:"laura@email.com",un2:"GMC 3500 Box Truck",uid:"v6",plate:"TX-1212",ut:"16ft box truck.",sd:"2026-04-12",ed:"2026-04-19",days:7,qty:1,tp:300,dp:150,reservationPaid:150,mr:0.15,miles:0,payMethod:"PayPal",ui:"🚐",settlementPaid:false,settlementTotal:0},
-    {oid:"ORD-OLD789",invNum:"INV-0099",status:"Activado",phase:"reservation",od:"2026-03-28",un:"John Smith",ue:"john@email.com",un2:"Dodge Ram Pick Up",uid:"v5",plate:"TX-1317",ut:"Pickup 8ft bed.",sd:"2026-04-01",ed:"2026-04-08",days:7,qty:1,tp:350,dp:300,reservationPaid:300,mr:0,miles:0,payMethod:"Cash",ui:"🛻",settlementPaid:false,settlementTotal:0},
+    {oid:"ORD-OLD789",invNum:"INV-0099",status:"Active",phase:"reservation",od:"2026-03-28",un:"John Smith",ue:"john@email.com",un2:"Dodge Ram Pick Up",uid:"v5",plate:"TX-1317",ut:"Pickup 8ft bed.",sd:"2026-04-01",ed:"2026-04-08",days:7,qty:1,tp:350,dp:300,reservationPaid:300,mr:0,miles:0,payMethod:"Cash",ui:"🛻",settlementPaid:false,settlementTotal:0},
   ]);
   const [fleetBookings,setFleetBookings]=useState([
     {vid:"v2",vname:"Freightliner Cascadia",start:"2026-04-10",end:"2026-04-24",type:"rental",client:"Carlos Mendez"},
@@ -4658,9 +4658,9 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
   </label>;
 
   const tabs=[["info","My Info","user"],["company","Company","list"],["payments","Payments","dol"],["rentals","Rentals","truck"],["docs","Documents","list"],["security","Security","shield"],["notifs","Notifications","mail"]];
-  const active=orders.filter(o=>["Reserved","Confirmed","Activado","Delivered","Pending","Active"].includes(o.status));
+  const active=orders.filter(o=>["Reserved","Confirmed","Active","Delivered","Pending"].includes(o.status));
   const past=orders.filter(o=>["Completed","Returned","Cancelled"].includes(o.status));
-  const getStatusStyle=(s)=>({Reserved:{bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B",label:"Reserved"},Confirmed:{bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6",label:"Confirmed"},Activado:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Activado"},Delivered:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Activado"},Pending:{bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B",label:"In Process"},Active:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Active"},Completed:{bg:"#F3F4F6",color:"#374151",dot:"#6B7280",label:"Completed"},Cancelled:{bg:"#FEE2E2",color:"#991B1B",dot:"#DC2626",label:"Cancelled"}}[s]||{bg:"#F3F4F6",color:"#374151",dot:"#6B7280",label:s});
+  const getStatusStyle=(s)=>({Reserved:{bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B",label:"Reserved"},Confirmed:{bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6",label:"Confirmed"},Active:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Active"},Delivered:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Active"},Pending:{bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B",label:"In Process"},Active:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Active"},Completed:{bg:"#F3F4F6",color:"#374151",dot:"#6B7280",label:"Completed"},Cancelled:{bg:"#FEE2E2",color:"#991B1B",dot:"#DC2626",label:"Cancelled"}}[s]||{bg:"#F3F4F6",color:"#374151",dot:"#6B7280",label:s});
 
   return <div className="fi" style={{padding:"40px 24px 100px"}}><div style={{maxWidth:1100,margin:"0 auto"}}>
     {/* PROFILE HEADER */}
@@ -4690,13 +4690,13 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
     {/* TAB CONTENT */}
     <div className="cd fi" style={{padding:28}}>
 
-      {/* ── MI INFORMACIÓN ── */}
+      {/* ── MY INFORMATION ── */}
       {tab==="info"&&<div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-          <h2 style={{fontWeight:800,fontSize:20,color:"var(--navy)"}}>Información Personal</h2>
+          <h2 style={{fontWeight:800,fontSize:20,color:"var(--navy)"}}>Personal Information</h2>
           <button onClick={()=>sEditing(!editing)} className="btn bsm" style={{background:editing?"var(--green)":"var(--b0)",color:editing?"#fff":"var(--b7)",border:editing?"none":"1px solid var(--b1)"}}><X n={editing?"ok":"edit"} s={14}/>{editing?"Save":"Edit"}</button>
         </div>
-        <S l="Datos Básicos">
+        <S l="Basic Details">
           <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
             <F l="First Name" v={prof.first} k="first" ph="John"/>
             <F l="Last Name" v={prof.last} k="last" ph="Doe"/>
@@ -4711,7 +4711,7 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
             <F l="ID / License #" v={prof.idDoc} k="idDoc" ph="Optional"/>
           </div>
         </S>
-        <S l="Preferencias de Servicio">
+        <S l="Service Preferences">
           <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
             <F l="Preferred Truck" v={prof.prefTruck} k="prefTruck" opts={[["box","Box Truck"],["semi","Semi Truck"],["pickup","Pickup"],["trailer","Trailer"],["forklift","Forklift"],["any","Any"]]}/>
             <F l="Usage Frequency" v={prof.prefFreq} k="prefFreq" opts={[["daily","Daily"],["weekly","Weekly"],["monthly","Monthly"],["occasional","Occasional"]]}/>
@@ -4724,7 +4724,7 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
             <Chk l="Roadside Assistance" k="svcRoadside"/>
           </div>
         </S>
-        <S l="Información de Carga">
+        <S l="Cargo Information">
           <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:12}}>
             <F l="Cargo Type" v={prof.cargoType} k="cargoType" ph="e.g. General Freight"/>
             <F l="Avg Weight (lbs)" v={prof.cargoWeight} k="cargoWeight" ph="e.g. 5000"/>
@@ -5018,17 +5018,17 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
         {delModal&&<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.5)",padding:16}}>
           <div style={{background:"#fff",borderRadius:20,padding:32,maxWidth:460,width:"100%",textAlign:"center"}}>
             <div style={{width:56,height:56,borderRadius:"50%",background:"rgba(220,38,38,.1)",color:"var(--red)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:24}}>🔒</div>
-            <h3 style={{fontWeight:700,fontSize:18,color:"var(--navy)",marginBottom:12}}>¿Está seguro de esta decisión?</h3>
-            <p style={{fontSize:14,color:"var(--g6)",marginBottom:8,lineHeight:1.5}}>Solo podrá habilitarla poniéndose en contacto con un asesor de BTOP.</p>
+            <h3 style={{fontWeight:700,fontSize:18,color:"var(--navy)",marginBottom:12}}>Are you sure about this?</h3>
+            <p style={{fontSize:14,color:"var(--g6)",marginBottom:8,lineHeight:1.5}}>You can only re-enable it by contacting a BTOP advisor.</p>
             <div style={{textAlign:"left",fontSize:12,color:"var(--g5)",lineHeight:1.8,padding:"12px 16px",background:"var(--g0)",borderRadius:10,marginBottom:20}}>
-              <div style={{fontWeight:700,color:"var(--g7)",marginBottom:4}}>Al deshabilitar:</div>
-              <div>• Se cerrará la sesión inmediatamente</div>
-              <div>• No podrá iniciar sesión hasta que un asesor reactive su cuenta</div>
-              <div>• Sus reservas activas y datos se conservarán</div>
+              <div style={{fontWeight:700,color:"var(--g7)",marginBottom:4}}>When you disable:</div>
+              <div>• You'll be signed out immediately</div>
+              <div>• You can't sign in until an advisor reactivates your account</div>
+              <div>• Your active reservations and data are kept</div>
             </div>
-            <div className="ig" style={{marginBottom:16,textAlign:"left"}}><label>Escriba su email para confirmar</label><input className="inf" value={delConfirmEmail} onChange={e=>setDelConfirmEmail(e.target.value)} placeholder={user.email}/></div>
+            <div className="ig" style={{marginBottom:16,textAlign:"left"}}><label>Type your email to confirm</label><input className="inf" value={delConfirmEmail} onChange={e=>setDelConfirmEmail(e.target.value)} placeholder={user.email}/></div>
             <div style={{display:"flex",gap:12}}>
-              <button onClick={()=>{setDelModal(false);setDelConfirmEmail("")}} style={{flex:1,padding:"12px 20px",border:"1px solid var(--g3)",borderRadius:12,background:"#fff",cursor:"pointer",fontSize:14}}>Cancelar</button>
+              <button onClick={()=>{setDelModal(false);setDelConfirmEmail("")}} style={{flex:1,padding:"12px 20px",border:"1px solid var(--g3)",borderRadius:12,background:"#fff",cursor:"pointer",fontSize:14}}>Cancel</button>
               <button onClick={()=>{
                 if(delConfirmEmail!==user.email)return;
                 /* Mark contact as disabled (creates a contact record if it didn't exist for this client) */
@@ -5041,7 +5041,7 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
                 }
                 setDelModal(false);setDelConfirmEmail("");
                 if(logout)logout();else sv("home");
-              }} disabled={delConfirmEmail!==user.email} style={{flex:1,padding:"12px 20px",background:delConfirmEmail===user.email?"var(--red)":"var(--g3)",color:"#fff",border:"none",borderRadius:12,cursor:delConfirmEmail===user.email?"pointer":"not-allowed",fontSize:14,fontWeight:700}}>Sí, deshabilitar</button>
+              }} disabled={delConfirmEmail!==user.email} style={{flex:1,padding:"12px 20px",background:delConfirmEmail===user.email?"var(--red)":"var(--g3)",color:"#fff",border:"none",borderRadius:12,cursor:delConfirmEmail===user.email?"pointer":"not-allowed",fontSize:14,fontWeight:700}}>Yes, disable</button>
             </div>
           </div>
         </div>}
@@ -6282,8 +6282,8 @@ function FieldHQ({fleet,spaces,deliveries,setDeliveries,bookings=[],setBookings,
       {confirmEndMaint&&<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.5)"}} onClick={()=>setConfirmEndMaint(null)}>
         <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,maxWidth:460,width:"90%",padding:28,boxShadow:"0 32px 80px rgba(0,0,0,.3)"}}>
           <div style={{width:56,height:56,borderRadius:"50%",background:"#FEF3C7",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px",fontSize:28}}>⚠️</div>
-          <h3 style={{fontWeight:800,fontSize:18,color:"var(--navy)",textAlign:"center",marginBottom:8}}>¿Está seguro que desea finalizar el mantenimiento?</h3>
-          <p style={{fontSize:13,color:"var(--g6)",textAlign:"center",lineHeight:1.5,marginBottom:16}}>Esta es una operación compleja. Al confirmar, la unidad volverá al estado <strong>disponible</strong> inmediatamente y podrá ser alquilada de nuevo. Asegúrese de que el mantenimiento fue completado y documentado correctamente.</p>
+          <h3 style={{fontWeight:800,fontSize:18,color:"var(--navy)",textAlign:"center",marginBottom:8}}>End this maintenance?</h3>
+          <p style={{fontSize:13,color:"var(--g6)",textAlign:"center",lineHeight:1.5,marginBottom:16}}>This is a sensitive operation. On confirm, the unit returns to <strong>available</strong> immediately and can be rented again. Make sure the maintenance was completed and properly documented.</p>
           <div style={{background:"var(--g0)",borderRadius:10,padding:12,marginBottom:16,fontSize:12}}>
             <div style={{fontWeight:700,color:"var(--navy)",marginBottom:4}}>{confirmEndMaint.vname||"Vehicle"} {(()=>{const v=fleet.find(f=>f.id===confirmEndMaint.vid);return v?.plate?<span style={{fontFamily:"monospace",background:"#fff",padding:"1px 6px",borderRadius:4,marginLeft:6,fontSize:11,color:"var(--b7)"}}>{v.plate}</span>:null})()}</div>
             <div style={{color:"var(--g5)"}}>Reason: {confirmEndMaint.reason||"—"}</div>
@@ -6291,8 +6291,8 @@ function FieldHQ({fleet,spaces,deliveries,setDeliveries,bookings=[],setBookings,
             {confirmEndMaint.isDamage&&<div style={{color:"#DC2626",fontWeight:600,marginTop:4}}>⚠ Damage report — ensure repair is verified</div>}
           </div>
           <div style={{display:"flex",gap:10}}>
-            <button onClick={()=>setConfirmEndMaint(null)} style={{flex:1,padding:"12px 0",background:"#fff",border:"1px solid var(--g2)",borderRadius:10,fontWeight:700,fontSize:14,cursor:"pointer"}}>Cancelar</button>
-            <button onClick={()=>{endMaint(confirmEndMaint);setConfirmEndMaint(null)}} style={{flex:1,padding:"12px 0",background:"#059669",color:"#fff",border:"none",borderRadius:10,fontWeight:700,fontSize:14,cursor:"pointer"}}>Sí, finalizar</button>
+            <button onClick={()=>setConfirmEndMaint(null)} style={{flex:1,padding:"12px 0",background:"#fff",border:"1px solid var(--g2)",borderRadius:10,fontWeight:700,fontSize:14,cursor:"pointer"}}>Cancel</button>
+            <button onClick={()=>{endMaint(confirmEndMaint);setConfirmEndMaint(null)}} style={{flex:1,padding:"12px 0",background:"#059669",color:"#fff",border:"none",borderRadius:10,fontWeight:700,fontSize:14,cursor:"pointer"}}>Yes, end it</button>
           </div>
         </div>
       </div>}
