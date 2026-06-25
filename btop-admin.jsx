@@ -4344,7 +4344,17 @@ function Lo({dl,sv}){const [em,sem]=useState("");const [pw,spw]=useState("");con
         <button onClick={go} className="btn bp blg" style={{width:"100%",justifyContent:"center"}}>Sign In</button>
       </div>
       <div style={{textAlign:"center",marginTop:24,fontSize:14,color:"var(--g5)"}}>No account? <button onClick={()=>sv("register")} style={{background:"none",border:"none",color:"var(--b6)",cursor:"pointer",fontWeight:600}}>Create one</button></div>
-      <div style={{marginTop:20,padding:14,background:"var(--b0)",borderRadius:10,fontSize:12,color:"var(--b8)"}}><strong>Demo:</strong> admin@btop.com / admin123 · cliente@test.com / test123 · sede@btop.com / sede123</div>
+      <div style={{marginTop:20}}>
+        <p style={{fontSize:11,color:"var(--g5)",textAlign:"center",marginBottom:8,textTransform:"uppercase",letterSpacing:".5px",fontWeight:600}}>Accesos demo — toca para rellenar</p>
+        <div style={{display:"flex",gap:8}}>
+          {[["Admin","admin@btop.com","admin123"],["Cliente","cliente@test.com","test123"],["Sede","sede@btop.com","sede123"]].map(([l,e,p])=>
+            <button key={l} type="button" onClick={()=>{sem(e);spw(p)}} style={{flex:"1 1 0",minWidth:0,padding:"10px 8px",background:"var(--b0)",border:"1px solid var(--b1)",borderRadius:10,cursor:"pointer",textAlign:"center",transition:"all .15s"}} onMouseEnter={ev=>{ev.currentTarget.style.borderColor="var(--b5)";ev.currentTarget.style.background="#fff"}} onMouseLeave={ev=>{ev.currentTarget.style.borderColor="var(--b1)";ev.currentTarget.style.background="var(--b0)"}}>
+              <div style={{fontWeight:700,fontSize:13,color:"var(--b7)"}}>{l}</div>
+              <div style={{fontSize:10,color:"var(--g5)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e}</div>
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   </div>;
 }
