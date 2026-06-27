@@ -73,7 +73,7 @@ const admSeedBookings=[
   {id:"b5",client:"Gulf Coast Freight",unit:"Warehouse B1",type:"space",start:"2026-01-15",end:"2027-01-14",total:33600,deposit:2800,status:"active",phone:"(469) 555-0404",email:"ops@gulfcoast.com"},
   {id:"b6",client:"Fresh Produce Inc.",unit:"Cold Storage E",type:"space",start:"2026-02-01",end:"2027-01-31",total:42000,deposit:3500,status:"active",phone:"(469) 555-0606",email:"billing@freshproduce.com"},
 ];
-const admSeedTx=Array.from({length:20},(_,i)=>{const d=new Date(2026,3,15);d.setDate(d.getDate()-i);return{id:"tx"+i,date:d.toISOString().split("T")[0],client:["Carlos Mendez","Laura Vega","Martinez Logistics","John Smith","Gulf Coast"][i%5],amount:Math.floor(200+Math.random()*3000),module:i%2?"Space":"Truck",method:["Stripe","Cash","PayPal","Invoice"][i%4],status:i%6?"completed":"pending"};});
+const admSeedTx=Array.from({length:20},(_,i)=>{const d=new Date(2026,3,15);d.setDate(d.getDate()-i);return{id:"tx"+i,date:d.toISOString().split("T")[0],client:["Carlos Mendez","Laura Vega","Martinez Logistics","John Smith","Gulf Coast"][i%5],amount:Math.floor(200+Math.random()*3000),module:i%2?"Space":"Truck",method:["Stripe","Zelle","Cash"][i%4],status:i%6?"completed":"pending"};});
 
 const admSeedContacts=[
   {id:"c1",name:"Carlos Mendez",email:"carlos@email.com",phone:"(469) 555-0101",city:"Laredo",company:"Mendez Trucking",idDoc:"TX DL 12345678",registered:"2026-01-15",lastOrder:"2026-04-10",totalSpent:4800,orders:3},
@@ -1926,7 +1926,7 @@ function PayMod(){
   const [filter,setFilter]=useState("all");
   const filtered=filter==="all"?admSeedTx:admSeedTx.filter(t=>t.status===filter);
   const {slice,Pager}=usePagination(filtered,10);
-  const methods=[{n:"Stripe",share:55,vol:48200,s:"connected"},{n:"Cash",share:22,vol:19400,s:"manual"},{n:"PayPal",share:13,vol:11440,s:"connected"},{n:"Invoice",share:10,vol:8800,s:"manual"}];
+  const methods=[{n:"Stripe",share:62,vol:48200,s:"connected"},{n:"Zelle",share:23,vol:17900,s:"manual"},{n:"Cash / Check",share:15,vol:11700,s:"manual"}];
 
   const exportCSV=()=>{
     const headers=["Date","Client","Amount","Module","Method","Status"];
@@ -1993,7 +1993,7 @@ function InvoiceMod(){
   const [delConfirm,setDelConfirm]=useState(null);
   const [viewMode,setViewMode]=useState("kanban");
   const [showCompleted,setShowCompleted]=useState(true);
-  const [pdfConfig,setPdfConfig]=useState({companyName:"BTOP Rentals",address:"9807 Mines Rd #9, Laredo TX 78045",phone:"(469) 690-7112",email:"btoprentals@gmail.com",footer:"Thank you for your business",color:"#1a365d"});
+  const [pdfConfig,setPdfConfig]=useState({companyName:"BTOP Rentals",address:"9807 Mines Rd #9, Laredo TX 78045",phone:"+1 469 690 712",email:"btoprentals@gmail.com",footer:"Thank you for your business",color:"#1a365d"});
 
   const calcSub=(inv)=>inv.items.reduce((s,i)=>s+(i.qty||0)*(i.rate||0),0);
   const calcTotal=(inv)=>{const sub=calcSub(inv);const tax=sub*((inv.tax||0)/100);return(sub+tax)*(1-(inv.discount||0)/100)};
@@ -2386,7 +2386,7 @@ function ConfigMod({gateways,setGateways,hours,setHours,alarmEnabled,setAlarmEna
   const [gwEdit,setGwEdit]=useState(null);
   const [editHours,setEditHours]=useState(false);
   const [editCompany,setEditCompany]=useState(false);
-  const [company,setCompany]=useState({name:"BTOP Rentals",address:"9807 Mines Rd #9, Laredo TX 78045",phone:"(469) 690-7112",email:"btoprentals@gmail.com"});
+  const [company,setCompany]=useState({name:"BTOP Rentals",address:"9807 Mines Rd #9, Laredo TX 78045",phone:"+1 469 690 712",email:"btoprentals@gmail.com"});
   const gw=gateways;const sg=setGateways;
   const uGw=(key,field,val)=>sg(p=>({...p,[key]:{...p[key],[field]:val}}));
   /* Test-beep helper so the admin can preview the sound when enabling */
@@ -2457,13 +2457,13 @@ function ConfigMod({gateways,setGateways,hours,setHours,alarmEnabled,setAlarmEna
               <div className="flex gap-2"><button onClick={()=>{uGw("stripe","connected",true);setGwEdit(null)}} className="px-4 py-2 bg-blue-900 text-white rounded-full text-sm">Save & Connect</button>{gw.stripe.connected&&<button onClick={()=>uGw("stripe","connected",false)} className="px-4 py-2 text-red-600 border border-red-200 rounded-full text-sm">Disconnect</button>}</div>
             </div>}
           </div>
-          {/* PAYPAL */}
-          <div className="border border-stone-200 rounded-xl p-4"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">PP</div><div><div className="text-sm font-semibold">PayPal</div><div className="text-xs text-stone-500">PayPal payments</div></div></div><div className="flex items-center gap-2"><Pill tone={gw.paypal.connected?"emerald":"red"}>{gw.paypal.connected?"Connected":"Not connected"}</Pill><button onClick={()=>setGwEdit(gwEdit==="paypal"?null:"paypal")} className="text-xs text-blue-700 font-medium px-3 py-1 hover:bg-blue-50 rounded-lg">Manage</button></div></div>
-            {gwEdit==="paypal"&&<div className="mt-4 space-y-3 border-t border-stone-200 pt-4">
-              <F label="Client ID"><Inp value={gw.paypal.clientId} onChange={v=>uGw("paypal","clientId",v)} placeholder="AX..."/></F>
-              <F label="Client Secret"><Inp value={gw.paypal.clientSecret} onChange={v=>uGw("paypal","clientSecret",v)} type="password" placeholder="EL..."/></F>
-              <F label="Mode"><Sel value={gw.paypal.mode} onChange={v=>uGw("paypal","mode",v)} options={[["sandbox","Sandbox"],["live","Live"]]}/></F>
-              <div className="flex gap-2"><button onClick={()=>{uGw("paypal","connected",true);setGwEdit(null)}} className="px-4 py-2 bg-blue-900 text-white rounded-full text-sm">Save & Connect</button>{gw.paypal.connected&&<button onClick={()=>uGw("paypal","connected",false)} className="px-4 py-2 text-red-600 border border-red-200 rounded-full text-sm">Disconnect</button>}</div>
+          {/* ZELLE */}
+          <div className="border border-stone-200 rounded-xl p-4"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">Z</div><div><div className="text-sm font-semibold">Zelle</div><div className="text-xs text-stone-500">Manual transfer + receipt (admin validates)</div></div></div><div className="flex items-center gap-2"><Pill tone={gw.zelle.enabled?"amber":"stone"}>{gw.zelle.enabled?"Enabled":"Disabled"}</Pill><button onClick={()=>setGwEdit(gwEdit==="zelle"?null:"zelle")} className="text-xs text-blue-700 font-medium px-3 py-1 hover:bg-blue-50 rounded-lg">Manage</button></div></div>
+            {gwEdit==="zelle"&&<div className="mt-4 space-y-3 border-t border-stone-200 pt-4">
+              <Tog label="Enable Zelle Payments" checked={gw.zelle.enabled} onChange={()=>uGw("zelle","enabled",!gw.zelle.enabled)}/>
+              <F label="Zelle Email (where customers send transfers)"><Inp value={gw.zelle.email} onChange={v=>uGw("zelle","email",v)} type="email"/></F>
+              <F label="Instructions for customer"><TArea value={gw.zelle.instructions} onChange={v=>uGw("zelle","instructions",v)}/></F>
+              <button onClick={()=>setGwEdit(null)} className="px-4 py-2 bg-blue-900 text-white rounded-full text-sm">Save</button>
             </div>}
           </div>
           {/* CASH */}
@@ -2471,15 +2471,6 @@ function ConfigMod({gateways,setGateways,hours,setHours,alarmEnabled,setAlarmEna
             {gwEdit==="cash"&&<div className="mt-4 space-y-3 border-t border-stone-200 pt-4">
               <Tog label="Enable Cash Payments" checked={gw.cash.enabled} onChange={()=>uGw("cash","enabled",!gw.cash.enabled)}/>
               <F label="Instructions for customer"><TArea value={gw.cash.instructions} onChange={v=>uGw("cash","instructions",v)} placeholder="Pay at pickup..."/></F>
-              <button onClick={()=>setGwEdit(null)} className="px-4 py-2 bg-blue-900 text-white rounded-full text-sm">Save</button>
-            </div>}
-          </div>
-          {/* INVOICE */}
-          <div className="border border-stone-200 rounded-xl p-4"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><FileText className="w-5 h-5"/></div><div><div className="text-sm font-semibold">Company Invoice</div><div className="text-xs text-stone-500">Business billing</div></div></div><div className="flex items-center gap-2"><Pill tone={gw.invoice.enabled?"amber":"stone"}>{gw.invoice.enabled?"Enabled":"Disabled"}</Pill><button onClick={()=>setGwEdit(gwEdit==="invoice"?null:"invoice")} className="text-xs text-blue-700 font-medium px-3 py-1 hover:bg-blue-50 rounded-lg">Manage</button></div></div>
-            {gwEdit==="invoice"&&<div className="mt-4 space-y-3 border-t border-stone-200 pt-4">
-              <Tog label="Enable Invoice Billing" checked={gw.invoice.enabled} onChange={()=>uGw("invoice","enabled",!gw.invoice.enabled)}/>
-              <F label="Instructions for customer"><TArea value={gw.invoice.instructions} onChange={v=>uGw("invoice","instructions",v)}/></F>
-              <F label="Billing Email"><Inp value={gw.invoice.billingEmail} onChange={v=>uGw("invoice","billingEmail",v)} type="email"/></F>
               <button onClick={()=>setGwEdit(null)} className="px-4 py-2 bg-blue-900 text-white rounded-full text-sm">Save</button>
             </div>}
           </div>
@@ -2676,7 +2667,7 @@ function usePersistentState(key,initial){
 
 const PENDING_TTL_DAYS=30;          /* pending orders auto-expire after 30 days */
 const CART_STALE_MIN=60;            /* an active cart untouched >60 min = abandoned */
-const SUPPORT={phone:"+1 469 690 712",altPhone:"(469) 690-7112",email:"btoprentals@gmail.com"};
+const SUPPORT={phone:"+1 469 690 712",altPhone:"+1 469 690 712",email:"btoprentals@gmail.com"};
 
 const genCode=(prefix)=>prefix+"-"+Math.random().toString(36).slice(2,8).toUpperCase();
 const nowISO=()=>new Date().toISOString();
@@ -3108,7 +3099,7 @@ export default function App(){
     subject:"Reservation Confirmed — {{invoice}}",
     greeting:"Hi {{client}},",
     body:"Great news! Your reservation has been confirmed. Below are the details for your records:\n\n• Invoice: {{invoice}}\n• Item: {{item}}\n• Dates: {{startDate}} to {{endDate}} ({{days}} days)\n• Total: {{total}}\n• Deposit Paid: {{deposit}}\n• Remaining at delivery: {{remaining}}\n\nPlease keep this email as proof of your booking. If you need to make changes, contact us before the start date.",
-    footer:"Thank you for choosing BTOP Rentals.\n\n9807 Mines Rd #9, Laredo TX 78045\n(469) 690-7112 · btoprentals@gmail.com",
+    footer:"Thank you for choosing BTOP Rentals.\n\n9807 Mines Rd #9, Laredo TX 78045\n+1 469 690 712 · btoprentals@gmail.com",
   });
   const [emailLog,setEmailLog]=useState([]);
   /* Render template variables for a given order */
@@ -3203,7 +3194,7 @@ export default function App(){
     /* Demo CREDIT order (overdue) — relates to credit line CL-DEMO1 (Roberto Perez) to populate Credit & Overdue */
     {oid:"ORD-CREDIT1",invNum:"INV-0096",status:"Confirmed",payState:"approved",phase:"reservation",od:"2026-04-01",approvedAt:"2026-04-01T00:00:00.000Z",un:"Roberto Perez",ue:"roberto@email.com",un2:"Ottawa Yard Spotter",uid:"v1",plate:"TX-990",ut:"Monthly yard spotter",sd:"2026-04-05",ed:"2026-05-05",days:30,qty:1,tp:3800,dp:500,reservationPaid:500,mr:0,miles:0,payMethod:"invoice",ui:"🚛",settlementPaid:false,settlementTotal:0},
     {oid:"ORD-ABC123",invNum:"INV-0097",status:"Confirmed",phase:"reservation",od:"2026-04-05",un:"Carlos Mendez",ue:"carlos@email.com",un2:"Freightliner Cascadia",uid:"v2",plate:"TX-16000",ut:"Regional hauling daycab.",sd:"2026-04-10",ed:"2026-04-24",days:14,qty:1,tp:2310,dp:500,reservationPaid:500,mr:0.15,miles:0,payMethod:"Stripe",ui:"🚚",settlementPaid:false,settlementTotal:0},
-    {oid:"ORD-DEF456",invNum:"INV-0098",status:"Confirmed",phase:"reservation",od:"2026-04-08",un:"Laura Vega",ue:"laura@email.com",un2:"GMC 3500 Box Truck",uid:"v6",plate:"TX-1212",ut:"16ft box truck.",sd:"2026-04-12",ed:"2026-04-19",days:7,qty:1,tp:300,dp:150,reservationPaid:150,mr:0.15,miles:0,payMethod:"PayPal",ui:"🚐",settlementPaid:false,settlementTotal:0},
+    {oid:"ORD-DEF456",invNum:"INV-0098",status:"Confirmed",phase:"reservation",od:"2026-04-08",un:"Laura Vega",ue:"laura@email.com",un2:"GMC 3500 Box Truck",uid:"v6",plate:"TX-1212",ut:"16ft box truck.",sd:"2026-04-12",ed:"2026-04-19",days:7,qty:1,tp:300,dp:150,reservationPaid:150,mr:0.15,miles:0,payMethod:"Zelle",ui:"🚐",settlementPaid:false,settlementTotal:0},
     {oid:"ORD-OLD789",invNum:"INV-0099",status:"Active",phase:"reservation",od:"2026-03-28",un:"John Smith",ue:"john@email.com",un2:"Dodge Ram Pick Up",uid:"v5",plate:"TX-1317",ut:"Pickup 8ft bed.",sd:"2026-04-01",ed:"2026-04-08",days:7,qty:1,tp:350,dp:300,reservationPaid:300,mr:0,miles:0,payMethod:"Cash",ui:"🛻",settlementPaid:false,settlementTotal:0},
   ]);
   const [fleetBookings,setFleetBookings]=useState([
@@ -3302,8 +3293,8 @@ export default function App(){
     }
     const invBase="INV-"+String(orders.length+100).padStart(4,"0");
     const today=new Date().toISOString().split("T")[0];
-    /* Stripe/PayPal: the gateway is the authority → auto-approved. Zelle/Cash/Invoice: pending manual validation. */
-    const auto=payMethod==="card"||payMethod==="paypal";
+    /* Stripe: the gateway is the authority → auto-approved. Zelle/Cash: pending manual validation. */
+    const auto=payMethod==="card";
     const expISO=new Date(Date.now()+PENDING_TTL_DAYS*86400000).toISOString();
     const nw=cart.map((i,idx)=>({...i,
       oid:"ORD-"+Math.random().toString(36).substr(2,8).toUpperCase(),
@@ -3495,7 +3486,7 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:40,marginBottom:40}}>
           <div><div style={{fontWeight:800,fontSize:24,color:"#fff",letterSpacing:2}}>BTOP<div style={{fontSize:10,letterSpacing:4,opacity:.7}}>Rentals</div></div><p style={{lineHeight:1.7,fontSize:14}}>Your trusted partner for truck and equipment rentals in Laredo, Texas.</p></div>
           <div><h4 style={{color:"#fff",marginBottom:16,fontSize:13,textTransform:"uppercase",letterSpacing:1}}>Quick Links</h4>{[["home","Home"],["fleet","Fleet"],["storage","Services"],["calendar","Calendar"],["news","News"],["contact","Contact"]].map(([k,l])=><div key={k} onClick={()=>setView(k)} style={{padding:"6px 0",cursor:"pointer",fontSize:14}}>{l}</div>)}</div>
-          <div><h4 style={{color:"#fff",marginBottom:16,fontSize:13,textTransform:"uppercase",letterSpacing:1}}>Contact</h4><div style={{display:"flex",flexDirection:"column",gap:10,fontSize:14}}><div style={{display:"flex",alignItems:"center",gap:8}}><X n="map" s={16} c="var(--b4)"/>9807 Mines Rd #9, Laredo TX 78045</div><div style={{display:"flex",alignItems:"center",gap:8}}><X n="phone" s={16} c="var(--b4)"/>(469) 690-7112</div><div style={{display:"flex",alignItems:"center",gap:8}}><X n="mail" s={16} c="var(--b4)"/>btoprentals@gmail.com</div></div></div>
+          <div><h4 style={{color:"#fff",marginBottom:16,fontSize:13,textTransform:"uppercase",letterSpacing:1}}>Contact</h4><div style={{display:"flex",flexDirection:"column",gap:10,fontSize:14}}><div style={{display:"flex",alignItems:"center",gap:8}}><X n="map" s={16} c="var(--b4)"/>9807 Mines Rd #9, Laredo TX 78045</div><div style={{display:"flex",alignItems:"center",gap:8}}><X n="phone" s={16} c="var(--b4)"/>+1 469 690 712</div><div style={{display:"flex",alignItems:"center",gap:8}}><X n="mail" s={16} c="var(--b4)"/>btoprentals@gmail.com</div></div></div>
           <div><h4 style={{color:"#fff",marginBottom:16,fontSize:13,textTransform:"uppercase",letterSpacing:1}}>Hours</h4><div style={{fontSize:14,lineHeight:2}}>Mon–Fri: 7AM–6PM<br/>Sat: 8AM–2PM<br/>Sun: Closed</div></div>
         </div>
         <div style={{borderTop:"1px solid rgba(255,255,255,.1)",paddingTop:24,textAlign:"center",fontSize:13}}>© 2026 BTOP Rentals. All rights reserved.</div>
@@ -3901,7 +3892,7 @@ function Home({fleet,sv,ac,t,bookings=[],cart=[],orders=[],spaces:propSpaces}){
       <p className="ss" style={{margin:"0 auto 32px"}}>Book today. Competitive rates, quality equipment, outstanding service.</p>
       <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap"}}>
         <button onClick={()=>document.getElementById("qb")?.scrollIntoView({behavior:"smooth"})} className="btn blg bp"><X n="cal" s={20}/>Book Now</button>
-        <a href="tel:4696907112" className="btn blg bs"><X n="phone" s={20}/>(469) 690-7112</a>
+        <a href="tel:+14696907112" className="btn blg bs"><X n="phone" s={20}/>+1 469 690 712</a>
       </div>
     </section>
   </div>;
@@ -4173,8 +4164,8 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv}){
   const grandTotal=totalRental+totalDep;
 
   const doConfirm=()=>{
-    /* Stripe/PayPal: redirect to the hosted checkout, then the gateway confirms automatically */
-    if(payMethod==="card"||payMethod==="paypal"){
+    /* Stripe: redirect to the hosted checkout, then the gateway confirms automatically */
+    if(payMethod==="card"){
       setStep("redirect");
       setTimeout(()=>{confirm(payMethod,payDetail);setStep("done");},1400);
       return;
@@ -4185,20 +4176,20 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv}){
 
   if(step==="redirect") return <div className="fi" style={{minHeight:"70vh",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
     <div style={{maxWidth:440,textAlign:"center"}}>
-      <div style={{width:72,height:72,borderRadius:18,background:payMethod==="paypal"?"linear-gradient(135deg,#003087,#009cde)":"#635BFF",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",color:"#fff",fontWeight:800,fontSize:22}}>{payMethod==="paypal"?"PP":"S"}</div>
-      <h1 style={{fontSize:22,fontWeight:800,color:"var(--navy)",marginBottom:8}}>Redirecting to {payMethod==="paypal"?"PayPal":"Stripe"}…</h1>
+      <div style={{width:72,height:72,borderRadius:18,background:"#635BFF",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",color:"#fff",fontWeight:800,fontSize:22}}>S</div>
+      <h1 style={{fontSize:22,fontWeight:800,color:"var(--navy)",marginBottom:8}}>Redirecting to Stripe…</h1>
       <p style={{color:"var(--g5)",fontSize:15}}>Taking you to the secure checkout to process your deposit of <strong>{$(totalDep)}</strong>.</p>
       <div style={{marginTop:24,width:40,height:40,border:"3px solid var(--g2)",borderTopColor:"var(--b6)",borderRadius:"50%",margin:"24px auto 0",animation:"spin 0.8s linear infinite"}}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   </div>;
 
-  if(step==="done"){const pending=payMethod!=="card"&&payMethod!=="paypal";return <div className="fi" style={{minHeight:"70vh",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+  if(step==="done"){const pending=payMethod!=="card";return <div className="fi" style={{minHeight:"70vh",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
     <div style={{maxWidth:520,textAlign:"center"}}>
       <div style={{width:80,height:80,borderRadius:"50%",background:pending?"#FEF3C7":"#D1FAE5",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 24px"}}><X n={pending?"clock":"ok"} s={40} c={pending?"var(--orange)":"var(--green)"}/></div>
       <h1 style={{fontSize:28,fontWeight:800,color:"var(--navy)",marginBottom:8}}>{pending?"Order received!":"Reservation confirmed!"}</h1>
       {pending
-        ?<p style={{color:"var(--g5)",fontSize:16,marginBottom:12}}>Your <strong>{payMethod==="zelle"?"Zelle":payMethod==="cash"?"Cash / Check":"credit invoice"}</strong> payment is <strong>under review</strong>. As soon as the administrator approves it, you'll receive your <strong>confirmation and rental agreement</strong> by email.</p>
+        ?<p style={{color:"var(--g5)",fontSize:16,marginBottom:12}}>Your <strong>{payMethod==="zelle"?"Zelle":"Cash / Check"}</strong> payment is <strong>under review</strong>. As soon as the administrator approves it, you'll receive your <strong>confirmation and rental agreement</strong> by email.</p>
         :<p style={{color:"var(--g5)",fontSize:16,marginBottom:12}}>Your deposit has been processed. You'll receive your confirmation and <strong>rental agreement</strong> by email. The remaining balance is charged at delivery.</p>}
       <p style={{color:"var(--b6)",fontSize:14,fontWeight:600,marginBottom:24}}>You can track your order status in your profile.</p>
       <div style={{display:"flex",gap:12,justifyContent:"center"}}>
@@ -4272,7 +4263,7 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv}){
       <div className="cd" style={{padding:24,marginBottom:24}}>
         <h3 style={{fontWeight:700,color:"var(--navy)",marginBottom:20}}>Select Payment Method</h3>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12,marginBottom:24}}>
-          {[["card","Credit / Debit Card","💳","Secure via Stripe"],["paypal","PayPal","PP","Pay with PayPal"],["zelle","Zelle","Z","Direct transfer"],["cash","Cash on Pickup","💵","Pay at our office"],["invoice","Company Invoice","📄","Net 30 billing"]].map(([v,l,ic,d])=>
+          {[["card","Credit / Debit Card","💳","Secure via Stripe"],["zelle","Zelle","Z","Direct transfer"],["cash","Cash / Check","💵","Pay at our office"]].map(([v,l,ic,d])=>
             <button key={v} onClick={()=>{setPayMethod(v);if(v==="cash")setCashModal(true)}} style={{padding:20,borderRadius:14,border:payMethod===v?"2px solid var(--b5)":"2px solid var(--g2)",background:payMethod===v?"var(--b0)":"#fff",cursor:"pointer",textAlign:"left"}}>
               <div style={{fontSize:28,marginBottom:6}}>{ic}</div>
               <div style={{fontWeight:700,fontSize:14,color:"var(--navy)"}}>{l}</div>
@@ -4295,13 +4286,6 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv}){
           </div>
         </div>}
 
-        {payMethod==="paypal"&&<div style={{padding:24,background:"var(--g0)",borderRadius:14,textAlign:"center"}}>
-          <div style={{width:72,height:72,borderRadius:20,background:"linear-gradient(135deg,#003087,#009cde)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}><span style={{color:"#fff",fontWeight:800,fontSize:24}}>PP</span></div>
-          <h4 style={{fontWeight:700,fontSize:16,color:"var(--navy)",marginBottom:8}}>Pay with PayPal</h4>
-          <p style={{fontSize:14,color:"var(--g5)",maxWidth:400,margin:"0 auto 20px"}}>You'll be redirected to PayPal to log in and confirm your deposit payment of <strong>{$(totalDep)}</strong>. No account details are shared with us.</p>
-          <div style={{padding:14,background:"var(--b0)",borderRadius:10,fontSize:13,color:"var(--b7)",fontWeight:600}}>Click "Confirm Reservation & Pay Deposit" to be redirected to PayPal</div>
-        </div>}
-
         {payMethod==="zelle"&&<div style={{padding:24,background:"var(--g0)",borderRadius:14}}>
           <div style={{padding:16,background:"var(--b0)",borderRadius:12,marginBottom:20}}>
             <h4 style={{fontWeight:700,color:"var(--b7)",marginBottom:8}}>Send your Zelle payment to:</h4>
@@ -4317,9 +4301,9 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv}){
               <div className="ig"><label>Amount Sent *</label><input className="inf" value={payDetail.zelleAmount||totalDep.toFixed(2)} onChange={e=>upPay("zelleAmount",e.target.value)} placeholder={totalDep.toFixed(2)}/></div>
               <div className="ig"><label>Time of Transfer</label><input className="inf" type="time" value={payDetail.zelleTime} onChange={e=>upPay("zelleTime",e.target.value)}/></div>
             </div>
-            <div className="ig"><label>Comprobante de pago (adjunto) *</label>
+            <div className="ig"><label>Payment receipt (attachment) *</label>
               <input type="file" accept="image/*,application/pdf" onChange={e=>upPay("zelleProof",e.target.files&&e.target.files[0]?e.target.files[0].name:"")} style={{fontSize:13,padding:"8px 0"}}/>
-              {payDetail.zelleProof&&<div style={{fontSize:12,color:"var(--green)",fontWeight:600,marginTop:4}}>📎 {payDetail.zelleProof} adjuntado</div>}
+              {payDetail.zelleProof&&<div style={{fontSize:12,color:"var(--green)",fontWeight:600,marginTop:4}}>📎 {payDetail.zelleProof} attached</div>}
             </div>
             <label style={{display:"flex",alignItems:"flex-start",gap:12,padding:14,background:payDetail.zelleReceipt?"#D1FAE5":"#fff",borderRadius:10,border:payDetail.zelleReceipt?"2px solid var(--green)":"2px solid var(--g2)",cursor:"pointer"}}>
               <input type="checkbox" checked={payDetail.zelleReceipt} onChange={e=>upPay("zelleReceipt",e.target.checked)} style={{width:18,height:18,accentColor:"var(--green)",marginTop:2}}/>
@@ -4348,27 +4332,6 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv}){
           </div>
         </div>}
 
-        {payMethod==="invoice"&&<div style={{padding:24,background:"var(--g0)",borderRadius:14}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}><X n="list" s={16} c="var(--orange)"/><span style={{fontSize:13,fontWeight:600,color:"var(--orange)"}}>Net 30 — Invoice will be generated automatically</span></div>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <div className="ig"><label>Company Name *</label><input className="inf" value={payDetail.invCompany} onChange={e=>upPay("invCompany",e.target.value)} placeholder="ACME Trucking LLC"/></div>
-              <div className="ig"><label>Tax ID / EIN *</label><input className="inf" value={payDetail.invTaxId} onChange={e=>upPay("invTaxId",e.target.value)} placeholder="XX-XXXXXXX"/></div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <div className="ig"><label>Billing Email *</label><input className="inf" type="email" value={payDetail.invBillEmail} onChange={e=>upPay("invBillEmail",e.target.value)} placeholder="billing@company.com"/></div>
-              <div className="ig"><label>PO Number (if applicable)</label><input className="inf" value={payDetail.invPO} onChange={e=>upPay("invPO",e.target.value)} placeholder="PO-00000"/></div>
-            </div>
-            <div className="ig"><label>Billing Address *</label><input className="inf" value={payDetail.invAddress} onChange={e=>upPay("invAddress",e.target.value)} placeholder="Full billing address"/></div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <div className="ig"><label>Contact Person *</label><input className="inf" value={payDetail.invContact} onChange={e=>upPay("invContact",e.target.value)} placeholder="Accounts payable contact"/></div>
-              <div className="ig"><label>Phone</label><input className="inf" type="tel" value={payDetail.invPhone} onChange={e=>upPay("invPhone",e.target.value)} placeholder="(469) 000-0000"/></div>
-            </div>
-          </div>
-          <div style={{marginTop:16,padding:14,background:"var(--b0)",borderRadius:10}}>
-            <p style={{fontSize:13,color:"var(--b7)"}}>A PDF invoice with Net 30 terms will be sent to the billing email. Status will show as <strong>"Pending Payment"</strong> until settled.</p>
-          </div>
-        </div>}
       </div>
 
       {/* FINAL SUMMARY */}
@@ -4380,7 +4343,7 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv}){
 
       <div style={{display:"flex",gap:12}}>
         <button onClick={()=>setStep("review")} className="btn bs blg" style={{flex:1,justifyContent:"center"}}>← Back</button>
-        <button onClick={doConfirm} className="btn bp blg" style={{flex:2,justifyContent:"center",fontSize:16}}><X n="ok" s={18}/>{payMethod==="card"||payMethod==="paypal"?"Go to secure payment":payMethod==="zelle"?"Submit payment report":payMethod==="cash"?"Place order (pay at office)":"Place order"}</button>
+        <button onClick={doConfirm} className="btn bp blg" style={{flex:2,justifyContent:"center",fontSize:16}}><X n="ok" s={18}/>{payMethod==="card"?"Go to secure payment":payMethod==="zelle"?"Submit payment report":payMethod==="cash"?"Place order (pay at office)":"Place order"}</button>
       </div>
     </div>}
 
@@ -4446,10 +4409,10 @@ function Re({dr,sv}){const [nm,snm]=useState("");const [em,sem]=useState("");con
         <div style={{borderTop:"1px solid var(--g2)",paddingTop:16,marginTop:4}}>
           <div style={{fontWeight:700,fontSize:14,color:"var(--navy)",marginBottom:4}}>Deposit Return Method</div>
           <p style={{fontSize:12,color:"var(--g5)",marginBottom:12}}>Where should we send your security deposit after rental completion?</p>
-          <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>{[["bank","Bank"],["paypal","PayPal"],["zelle","Zelle"],["cash","Cash"]].map(([v,l])=>
+          <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>{[["bank","Bank"],["zelle","Zelle"],["cash","Cash"]].map(([v,l])=>
             <button key={v} type="button" onClick={()=>setDepMethod(v)} style={{padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:600,border:"none",cursor:"pointer",background:depMethod===v?"var(--b6)":"var(--g1)",color:depMethod===v?"#fff":"var(--g7)"}}>{l}</button>
           )}</div>
-          {depMethod!=="cash"&&<div className="ig"><label>{depMethod==="bank"?"Bank Account / Routing #":depMethod==="paypal"?"PayPal Email":"Zelle Email or Phone"}</label><input className="inf" value={depInfo} onChange={e=>setDepInfo(e.target.value)} placeholder={depMethod==="bank"?"Bank name, routing & account #":depMethod==="paypal"?"paypal@email.com":"email or phone"}/></div>}
+          {depMethod!=="cash"&&<div className="ig"><label>{depMethod==="bank"?"Bank Account / Routing #":"Zelle Email or Phone"}</label><input className="inf" value={depInfo} onChange={e=>setDepInfo(e.target.value)} placeholder={depMethod==="bank"?"Bank name, routing & account #":"email or phone"}/></div>}
           {depMethod==="cash"&&<p style={{fontSize:12,color:"var(--g5)",padding:"10px 14px",background:"var(--g0)",borderRadius:8}}>You can pick up your deposit in person at our Laredo office.</p>}
         </div>
         <button onClick={go} className="btn bp blg" style={{width:"100%",justifyContent:"center"}}>Create Account</button>
@@ -4487,9 +4450,8 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
   const [roles,setRoles]=useState(admSeedRoles);
   const [gateways,setGateways]=useState({
     stripe:{connected:false,pubKey:"",secretKey:"",webhookSecret:"",mode:"test"},
-    paypal:{connected:false,clientId:"",clientSecret:"",mode:"sandbox"},
-    cash:{enabled:true,instructions:"Pay in cash when picking up the vehicle."},
-    invoice:{enabled:true,instructions:"You will receive an invoice via email.",billingEmail:"btoprentals@gmail.com"},
+    zelle:{enabled:true,email:"btoprentals@gmail.com",instructions:"Send your Zelle transfer and upload the receipt for verification."},
+    cash:{enabled:true,instructions:"Pay in cash or by check when picking up the vehicle."},
   });
   const [hours,setHours]=useState([{day:"Monday",open:"07:00",close:"18:00",active:true},{day:"Tuesday",open:"07:00",close:"18:00",active:true},{day:"Wednesday",open:"07:00",close:"18:00",active:true},{day:"Thursday",open:"07:00",close:"18:00",active:true},{day:"Friday",open:"07:00",close:"18:00",active:true},{day:"Saturday",open:"08:00",close:"14:00",active:true},{day:"Sunday",open:"",close:"",active:false}]);
   const [showLogout,setShowLogout]=useState(false);
@@ -4628,9 +4590,8 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
     notifChannel:"email",notifReturn:true,notifExpiry:true,notifCargo:false,notifIncident:true
   });
   const [pays,sPays]=useState([{id:1,type:"card",label:"Visa •••• 4242",isDefault:true,status:"active"},{id:2,type:"cash",label:"Cash on Pickup",isDefault:false,status:"active",cashName:"",cashPhone:"",cashConfirm:false}]);
-  const [payView,sPayView]=useState("list"); // list | add-card | add-paypal | add-cash | add-invoice
+  const [payView,sPayView]=useState("list"); // list | add-card | add-cash
   const [newCard,sNewCard]=useState({name:""});
-  const [paypalStatus,sPaypalStatus]=useState("disconnected");
   const [cashForm,sCashForm]=useState({name:"",phone:"",confirm:false,time:""});
   const [invForm,sInvForm]=useState({company:"",taxId:"",address:"",billingEmail:"",contact:"",phone:"",notes:""});
   const [docs,sDocs]=useState([]);
@@ -4645,7 +4606,6 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
   const togglePay=(id)=>sPays(p=>p.map(m=>({...m,isDefault:m.id===id})));
   const rmPay=(id)=>sPays(p=>p.filter(m=>m.id!==id));
   const addCard=()=>{sPays(p=>[...p,{id:Date.now(),type:"card",label:"Card •••• "+Math.floor(1000+Math.random()*9000),isDefault:!p.length,status:"active"}]);sNewCard({name:""});sPayView("list")};
-  const addPaypal=()=>{sPaypalStatus("connected");sPays(p=>[...p,{id:Date.now(),type:"paypal",label:"PayPal Connected",isDefault:!p.length,status:"active"}]);sPayView("list")};
   const addCash=()=>{if(!cashForm.name||!cashForm.confirm)return;sPays(p=>[...p,{id:Date.now(),type:"cash",label:"Cash – "+cashForm.name,isDefault:!p.length,status:"active"}]);sCashForm({name:"",phone:"",confirm:false,time:""});sPayView("list")};
   const addInvoice=()=>{if(!invForm.company||!invForm.taxId||!invForm.address||!invForm.billingEmail)return;sPays(p=>[...p,{id:Date.now(),type:"invoice",label:"Invoice – "+invForm.company,isDefault:!p.length,status:"active"}]);sInvForm({company:"",taxId:"",address:"",billingEmail:"",contact:"",phone:"",notes:""});sPayView("list")};
 
@@ -4793,7 +4753,7 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
           {/* Add buttons */}
           <div style={{fontSize:13,fontWeight:700,color:"var(--g7)",textTransform:"uppercase",letterSpacing:.5,marginBottom:12}}>Add Payment Method</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:12}}>
-            {[["add-card","Credit Card","Secure via Stripe","linear-gradient(135deg,#1a1a2e,#16213e)"],["add-paypal","PayPal","Connect your account","linear-gradient(135deg,#003087,#009cde)"],["add-cash","Cash on Pickup","Pay when you collect","linear-gradient(135deg,var(--green),#34D399)"],["add-invoice","Company Invoice","Business billing","linear-gradient(135deg,var(--orange),#FBBF24)"]].map(([v,t,d,bg])=>
+            {[["add-card","Credit Card","Secure via Stripe","linear-gradient(135deg,#1a1a2e,#16213e)"],["add-cash","Cash / Check","Pay when you collect","linear-gradient(135deg,var(--green),#34D399)"]].map(([v,t,d,bg])=>
               <button key={v} onClick={()=>sPayView(v)} style={{padding:20,borderRadius:14,border:"2px solid var(--g2)",background:"#fff",cursor:"pointer",textAlign:"left",transition:"all .2s",display:"flex",alignItems:"center",gap:14}}>
                 <div style={{width:42,height:42,borderRadius:12,background:bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                   <span style={{color:"#fff",fontWeight:800,fontSize:16}}>+</span>
@@ -4827,30 +4787,6 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
           <p style={{marginTop:12,fontSize:12,color:"var(--g5)"}}>Stripe handles all card data securely. We never store your card number, expiry, or CVC.</p>
         </div>}
 
-        {/* ── ADD PAYPAL ── */}
-        {payView==="add-paypal"&&<div className="fi">
-          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:24}}>
-            <div style={{width:48,height:48,borderRadius:14,background:"linear-gradient(135deg,#003087,#009cde)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#fff",fontWeight:800,fontSize:16}}>PP</span></div>
-            <div><h3 style={{fontWeight:700,fontSize:18,color:"var(--navy)"}}>Connect PayPal</h3><p style={{fontSize:13,color:"var(--g5)"}}>Link your PayPal account securely</p></div>
-          </div>
-          <div style={{padding:32,background:"var(--g0)",borderRadius:16,textAlign:"center",marginBottom:20}}>
-            <div style={{width:72,height:72,borderRadius:20,background:"linear-gradient(135deg,#003087,#009cde)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}><span style={{color:"#fff",fontWeight:800,fontSize:24}}>PP</span></div>
-            {paypalStatus==="disconnected"?<>
-              <h4 style={{fontWeight:700,fontSize:16,color:"var(--navy)",marginBottom:8}}>Connect your PayPal account</h4>
-              <p style={{fontSize:14,color:"var(--g5)",marginBottom:20,maxWidth:400,margin:"0 auto 20px"}}>You'll be redirected to PayPal to authorize the connection. No account details are shared with us.</p>
-              <button onClick={addPaypal} className="btn blg" style={{background:"#0070ba",color:"#fff",margin:"0 auto"}}><X n="arr" s={18}/>Connect with PayPal</button>
-            </>:<>
-              <div className="bd bg" style={{margin:"0 auto 12px",padding:"6px 16px",fontSize:14}}>✓ Connected</div>
-              <p style={{fontSize:14,color:"var(--g5)"}}>Your PayPal account is linked and ready to use</p>
-              <button onClick={()=>{sPaypalStatus("disconnected");sPays(p=>p.filter(m=>m.type!=="paypal"))}} className="btn bsm" style={{background:"rgba(220,38,38,.06)",color:"var(--red)",border:"1px solid rgba(220,38,38,.15)",marginTop:12}}>Disconnect PayPal</button>
-            </>}
-          </div>
-          <div style={{display:"flex",gap:12}}>
-            <button onClick={()=>sPayView("list")} className="btn bs">Back to Methods</button>
-          </div>
-          <p style={{marginTop:12,fontSize:12,color:"var(--g5)"}}>PayPal manages all authentication securely. We never access your PayPal credentials.</p>
-        </div>}
-
         {/* ── ADD CASH ── */}
         {payView==="add-cash"&&<div className="fi">
           <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:24}}>
@@ -4874,52 +4810,18 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout}){
           </div>
         </div>}
 
-        {/* ── ADD INVOICE ── */}
-        {payView==="add-invoice"&&<div className="fi">
-          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:24}}>
-            <div style={{width:48,height:48,borderRadius:14,background:"linear-gradient(135deg,var(--orange),#FBBF24)",display:"flex",alignItems:"center",justifyContent:"center"}}><X n="list" s={24} c="#fff"/></div>
-            <div><h3 style={{fontWeight:700,fontSize:18,color:"var(--navy)"}}>Company Invoice</h3><p style={{fontSize:13,color:"var(--g5)"}}>Business billing with fiscal data</p></div>
-          </div>
-          <div style={{padding:24,background:"var(--g0)",borderRadius:16,marginBottom:20}}>
-            <div style={{fontSize:13,fontWeight:700,color:"var(--g7)",textTransform:"uppercase",letterSpacing:.5,marginBottom:12}}>Required Information</div>
-            <div style={{display:"flex",flexDirection:"column",gap:14}}>
-              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-                <div className="ig" style={{flex:1,minWidth:200}}><label>Company Name *</label><input className="inf" value={invForm.company} onChange={e=>sInvForm(p=>({...p,company:e.target.value}))} placeholder="BTOP Rentals LLC"/></div>
-                <div className="ig" style={{flex:1,minWidth:200}}><label>Tax ID / EIN *</label><input className="inf" value={invForm.taxId} onChange={e=>sInvForm(p=>({...p,taxId:e.target.value}))} placeholder="XX-XXXXXXX"/></div>
-              </div>
-              <div className="ig"><label>Fiscal Address *</label><input className="inf" value={invForm.address} onChange={e=>sInvForm(p=>({...p,address:e.target.value}))} placeholder="Full business address"/></div>
-              <div className="ig"><label>Billing Email *</label><input className="inf" type="email" value={invForm.billingEmail} onChange={e=>sInvForm(p=>({...p,billingEmail:e.target.value}))} placeholder="billing@company.com"/></div>
-            </div>
-            <div style={{fontSize:13,fontWeight:700,color:"var(--g7)",textTransform:"uppercase",letterSpacing:.5,marginBottom:12,marginTop:20}}>Optional Details</div>
-            <div style={{display:"flex",flexDirection:"column",gap:14}}>
-              <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-                <div className="ig" style={{flex:1,minWidth:200}}><label>Contact Person</label><input className="inf" value={invForm.contact} onChange={e=>sInvForm(p=>({...p,contact:e.target.value}))} placeholder="Full name"/></div>
-                <div className="ig" style={{flex:1,minWidth:200}}><label>Company Phone</label><input className="inf" type="tel" value={invForm.phone} onChange={e=>sInvForm(p=>({...p,phone:e.target.value}))} placeholder="(469) 000-0000"/></div>
-              </div>
-              <div className="ig"><label>Billing Notes</label><textarea className="inf" rows={2} value={invForm.notes} onChange={e=>sInvForm(p=>({...p,notes:e.target.value}))} placeholder="PO number, special billing instructions..." style={{resize:"vertical"}}/></div>
-            </div>
-          </div>
-          <div style={{display:"flex",gap:12}}>
-            <button onClick={addInvoice} className="btn bp" style={{opacity:invForm.company&&invForm.taxId&&invForm.address&&invForm.billingEmail?1:.5}}><X n="ok" s={16}/>Save Billing Info</button>
-            <button onClick={()=>sPayView("list")} className="btn bs">Cancel</button>
-          </div>
-        </div>}
-
         {/* ── DEPOSIT RETURN ── */}
         <div style={{marginTop:32,paddingTop:24,borderTop:"2px solid var(--b1)"}}>
           <h3 style={{fontWeight:700,fontSize:16,color:"var(--navy)",marginBottom:4}}>Deposit Return Method</h3>
           <p style={{fontSize:13,color:"var(--g5)",marginBottom:16}}>How would you like to receive your security deposit back after your rental is complete?</p>
           <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
-            {[["bank","Bank Transfer"],["paypal","PayPal"],["zelle","Zelle"],["cash","Cash Pickup"]].map(([v,l])=>
+            {[["bank","Bank Transfer"],["zelle","Zelle"],["cash","Cash Pickup"]].map(([v,l])=>
               <button key={v} onClick={()=>setDepositReturn(p=>({...p,method:v}))} className="btn bsm" style={{background:depositReturn.method===v?"var(--b6)":"#fff",color:depositReturn.method===v?"#fff":"var(--g7)",border:depositReturn.method===v?"none":"1px solid var(--g3)"}}>{l}</button>
             )}
           </div>
           {depositReturn.method==="bank"&&<div style={{display:"flex",flexDirection:"column",gap:12,maxWidth:500,padding:20,background:"var(--g0)",borderRadius:14}}>
             <div className="ig"><label>Bank Name</label><input className="inf" value={depositReturn.bankName} onChange={e=>setDepositReturn(p=>({...p,bankName:e.target.value}))} placeholder="Chase, Wells Fargo, etc."/></div>
             <div style={{display:"flex",gap:12}}><div className="ig" style={{flex:1}}><label>Routing Number</label><input className="inf" value={depositReturn.routingNumber} onChange={e=>setDepositReturn(p=>({...p,routingNumber:e.target.value}))} placeholder="9 digits"/></div><div className="ig" style={{flex:1}}><label>Account Number</label><input className="inf" value={depositReturn.accountNumber} onChange={e=>setDepositReturn(p=>({...p,accountNumber:e.target.value}))} placeholder="Account #"/></div></div>
-          </div>}
-          {depositReturn.method==="paypal"&&<div style={{maxWidth:500,padding:20,background:"var(--g0)",borderRadius:14}}>
-            <div className="ig"><label>PayPal Email</label><input className="inf" type="email" value={depositReturn.paypalEmail} onChange={e=>setDepositReturn(p=>({...p,paypalEmail:e.target.value}))} placeholder="your@paypal.com"/></div>
           </div>}
           {depositReturn.method==="zelle"&&<div style={{maxWidth:500,padding:20,background:"var(--g0)",borderRadius:14}}>
             <div className="ig"><label>Zelle Email or Phone</label><input className="inf" value={depositReturn.zelleEmail} onChange={e=>setDepositReturn(p=>({...p,zelleEmail:e.target.value}))} placeholder="email@example.com or (469) 555-0000"/></div>
@@ -5107,7 +5009,7 @@ function Co({t,addMsg,sv}){const [sent,ss]=useState(false);const [nm,snm]=useSta
 
         <div style={{display:"flex",flexDirection:"column",gap:16}}>
           {[
-            {i:"phone",l:"Call Us",v:"(469) 690-7112",d:"Mon–Fri 7AM–6PM, Sat 8AM–2PM",bg:"linear-gradient(135deg,#1B4DDB,#3B82F6)"},
+            {i:"phone",l:"Call Us",v:"+1 469 690 712",d:"Mon–Fri 7AM–6PM, Sat 8AM–2PM",bg:"linear-gradient(135deg,#1B4DDB,#3B82F6)"},
             {i:"mail",l:"Email Us",v:"btoprentals@gmail.com",d:"We respond within 1 hour",bg:"linear-gradient(135deg,#059669,#10b981)"},
             {i:"map",l:"Visit Us",v:"9807 Mines Rd – Suite #9",d:"Laredo, TX 78045",bg:"linear-gradient(135deg,#F59E0B,#F97316)"},
           ].map((c,i)=><div key={i} style={{display:"flex",gap:16,padding:20,background:"#fff",borderRadius:16,border:"1px solid var(--g2)",boxShadow:"0 2px 8px rgba(0,0,0,.04)",transition:"all .2s",cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform=""}>
