@@ -2817,11 +2817,8 @@ EXHIBIT A — SCHEDULE OF LEASED PROPERTY
    ------------------------------------------------------------------------
    Rental Subtotal: {{subtotal}}      Security Deposits: {{deposit_total}}      TOTAL: {{total}}
 
-IN WITNESS WHEREOF, the parties have executed this Agreement as of {{issue_date}}.
-
-   ____________________________            ____________________________
-   BTOP Rentals — Lessor                   {{client_name}} — Lessee
-   Date: {{issue_date}}                    Date: ____________________`,
+IN WITNESS WHEREOF, the parties have executed this Agreement electronically as of {{issue_date}}.
+The parties' electronic signatures are affixed in the Signatures section below and form an integral part of this Agreement (U.S. ESIGN Act & UETA).`,
   footer:"BTOP Rentals · 9807 Mines Rd #9, Laredo TX 78045 · "+SUPPORT.altPhone+" · "+SUPPORT.email,
 };
 
@@ -2936,6 +2933,9 @@ function SignaturePad({onSave,onClose,title="Add your signature"}){
   </div>;
 }
 
+/* Remove legacy manual signature lines from a contract body (old contracts) so they don't duplicate the digital block */
+const stripSigPlaceholders=(s)=>String(s||"").replace(/^.*_{6,}.*$/gm,"").replace(/\n{3,}/g,"\n\n").trim();
+
 /* ─── Generate the rental contract as a real PDF with both hand-drawn signatures embedded ─── */
 function generateSignedPdf(c,{clientSig,repSig,repName,company={},clientSignedAt,repSignedAt}={}){
   const doc=new jsPDF({unit:"pt",format:"letter"});
@@ -2946,10 +2946,11 @@ function generateSignedPdf(c,{clientSig,repSig,repName,company={},clientSignedAt
     doc.setDrawColor(210);doc.line(M,y,PW-M,y);y+=16;};
   head();
   doc.setFont("times","normal");doc.setFontSize(10);doc.setTextColor(25);
-  const lines=doc.splitTextToSize(c.body||"",W);
+  const lines=doc.splitTextToSize(stripSigPlaceholders(c.body),W);
   for(const ln of lines){if(y>742){doc.addPage();y=56;}doc.text(ln,M,y);y+=13.5;}
   /* Signature block (keep on one page) */
-  if(y>610){doc.addPage();y=70;}else{y+=24;}
+  if(y>600){doc.addPage();y=70;}else{y+=22;}
+  doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(30,58,95);doc.text("SIGNATURES",M,y);y+=16;
   const colW=(W-40)/2,imgY=y,lineY=y+62;
   const place=(img,x)=>{if(img){try{doc.addImage(img,"PNG",x,imgY,colW,56);}catch(e){}}};
   place(repSig,M);place(clientSig,M+colW+40);
@@ -3266,16 +3267,16 @@ function CreditMod({creditLines,setCreditLines,orders,contacts=[]}){
 }
 
 /* ═══ ADMIN · RENTAL CONTRACTS (auto-generated when the admin approves payment) ═══ */
-function ContractsMod({contracts,setContracts,contractTpl,setContractTpl,signaturesAll={},company={}}){
+function ContractsMod({contracts,setContracts,contractTpl,setContractTpl,signaturesAll={},company={},setCompany}){
   const [tab,setTab]=useState("list");
   const [draft,setDraft]=useState(contractTpl);
   const [view,setView]=useState(null);
+  const [repSigModal,setRepSigModal]=useState(false);
   const [q,setQ]=useState("");
-  /* A contract is "signed" when both parties have a signature on file: lessee = client's saved sig, lessor = company rep sig */
-  const sigFor=(c)=>signaturesAll[c.email];
-  const repSig=company.repSignature;
-  const signState=(c)=>{const l=!!sigFor(c),r=!!repSig;return l&&r?"both":l||r?"partial":"none"};
-  const downloadSigned=(c)=>generateSignedPdf(c,{clientSig:sigFor(c)?.dataUrl,repSig:repSig,repName:company.repName,company,clientSignedAt:sigFor(c)?.savedAt,repSignedAt:company.repConsentAt});
+  /* Per-document signatures: lessee stamped at checkout, lessor stamped when admin presses "Sign as BTOP" on THIS contract */
+  const signState=(c)=>{const l=!!c.lesseeSig?.dataUrl,r=!!c.lessorSig?.dataUrl;return l&&r?"both":l||r?"partial":"none"};
+  const downloadSigned=(c)=>generateSignedPdf(c,{clientSig:c.lesseeSig?.dataUrl,repSig:c.lessorSig?.dataUrl,repName:c.lessorSig?.name||company.repName,company,clientSignedAt:c.lesseeSig?.signedAt,repSignedAt:c.lessorSig?.signedAt});
+  const signAsBtop=(c,dataUrl)=>{const sig={dataUrl,name:company.repName||"BTOP Representative",signedAt:nowISO()};setContracts(p=>p.map(x=>x.id===c.id?{...x,lessorSig:sig}:x));setView(v=>v&&v.id===c.id?{...v,lessorSig:sig}:v)};
   const [from,setFrom]=useState("");
   const [to,setTo]=useState("");
   const ql=q.trim().toLowerCase();
@@ -3335,19 +3336,20 @@ function ContractsMod({contracts,setContracts,contractTpl,setContractTpl,signatu
         {(()=>{const sample={oid:"ORD-DEMO12",un:"Sample Client",ue:"client@sample.com",bPhone:"(469) 555-0000",sd:"2026-07-01",ed:"2026-07-08",days:7,payMethod:"Stripe (card)",approvedAt:nowISO(),items:[{name:"Freightliner Cascadia",cat:"Daycab",days:7,qty:1,rate:1155,deposit:500}]};const r=renderContract(draft,sample);return <div><div className="font-bold text-sm text-blue-900 mb-2">{r.title}</div><pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-stone-700 bg-stone-50 p-3 rounded-lg max-h-[420px] overflow-auto">{r.body}</pre><div className="text-[10px] text-stone-400 mt-2">{r.footer}</div></div>})()}
       </SC>
     </div>}
-    {view&&(()=>{const ls=sigFor(view);const ss=signState(view);return <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)",padding:16}} onClick={()=>setView(null)}>
+    {view&&(()=>{const ls=view.lesseeSig;const lr=view.lessorSig;const ss=signState(view);return <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.4)",padding:16}} onClick={()=>setView(null)}>
       <div onClick={e=>e.stopPropagation()} className="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-stone-200 sticky top-0 bg-white"><div className="flex items-center gap-2"><span className="font-mono font-bold text-blue-700">{view.contractNum}</span><Pill tone={ss==="both"?"emerald":ss==="partial"?"amber":"stone"}>{ss==="both"?"✓ Signed":ss==="partial"?"Partially signed":"Not signed"}</Pill></div><div className="flex gap-2"><button onClick={()=>downloadSigned(view)} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1"><Download className="w-3.5 h-3.5"/>Download signed PDF</button><button onClick={()=>setView(null)} className="p-1.5 hover:bg-stone-100 rounded-full"><Xx className="w-4 h-4"/></button></div></div>
         <div className="p-5"><div className="font-bold text-blue-900 mb-3">{view.title}</div><pre className="whitespace-pre-wrap text-xs leading-relaxed text-stone-700">{view.body}</pre>
           {/* SIGNATURES */}
           <div className="grid grid-cols-2 gap-4 mt-5 pt-4 border-t">
-            <div><div className="text-[10px] uppercase font-semibold text-stone-400 mb-1">Lessor — {company.name||"BTOP Rentals"}</div>{repSig?<img src={repSig} alt="rep signature" style={{height:48,maxWidth:"100%",objectFit:"contain"}}/>:<div className="text-xs text-stone-400 italic">Not signed — set in Settings → Company</div>}{repSig&&<div className="text-[10px] text-stone-500 mt-1">{company.repName||"Authorized Representative"}</div>}</div>
-            <div><div className="text-[10px] uppercase font-semibold text-stone-400 mb-1">Lessee — {view.client}</div>{ls?.dataUrl?<img src={ls.dataUrl} alt="client signature" style={{height:48,maxWidth:"100%",objectFit:"contain"}}/>:<div className="text-xs text-stone-400 italic">Not signed — client signs in their portal</div>}{ls?.savedAt&&<div className="text-[10px] text-stone-500 mt-1">Signed {fmtDateTime(ls.savedAt)}</div>}</div>
+            <div><div className="text-[10px] uppercase font-semibold text-stone-400 mb-1">Lessor — {company.name||"BTOP Rentals"}</div>{lr?.dataUrl?<><img src={lr.dataUrl} alt="rep signature" style={{height:48,maxWidth:"100%",objectFit:"contain"}}/><div className="text-[10px] text-stone-500 mt-1">{lr.name||"Authorized Representative"} · {fmtDateTime(lr.signedAt)}</div></>:<button onClick={()=>{company.repSignature?signAsBtop(view,company.repSignature):setRepSigModal(true)}} className="px-3 py-1.5 bg-blue-900 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5"><Pencil className="w-3 h-3"/>Sign as BTOP</button>}</div>
+            <div><div className="text-[10px] uppercase font-semibold text-stone-400 mb-1">Lessee — {view.client}</div>{ls?.dataUrl?<><img src={ls.dataUrl} alt="client signature" style={{height:48,maxWidth:"100%",objectFit:"contain"}}/><div className="text-[10px] text-stone-500 mt-1">Signed {fmtDateTime(ls.signedAt)}</div></>:<div className="text-xs text-stone-400 italic">Not signed — client signs at checkout</div>}</div>
           </div>
           <div className="text-[10px] text-stone-400 mt-4 border-t pt-3">{view.footer}</div>
         </div>
       </div>
     </div>})()}
+    {repSigModal&&<SignaturePad title="Sign as BTOP representative" onClose={()=>setRepSigModal(false)} onSave={(d)=>{if(view)signAsBtop(view,d);if(setCompany&&!company.repSignature)setCompany(p=>({...p,repSignature:d,repName:p.repName||"Authorized Representative",repConsentAt:nowISO()}));setRepSigModal(false)}}/>}
   </div>;
 }
 
@@ -3535,27 +3537,36 @@ export default function App(){
   },[]);
 
   /* Auto-generate the rental contract for a paid/approved order (idempotent: one per order) and "email" the PDF */
-  const sendContract=(order)=>{
-    const r=renderContract(contractTpl,order,company);
-    const rec={id:genCode("CT"),contractNum:r.contractNum,oid:order.oid,client:order.un,email:order.ue,createdAt:nowISO(),status:"sent",title:r.title,body:r.body,footer:r.footer};
-    let created=false;
-    setContracts(p=>{if(p.some(c=>c.oid===order.oid))return p;created=true;return [rec,...p];});
-    /* Log the agreement email (with PDF attachment) to the email log — only once per order */
-    if(created)setEmailLog(p=>[{id:"email-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),sentAt:nowISO(),to:order.ue||"",toName:order.un||"",oid:order.oid,invoice:order.invNum||order.oid,subject:`Your Rental Agreement ${r.contractNum} — BTOP Rentals`,greeting:`Hi ${order.un||"Customer"},`,body:`Your payment has been approved. Please find attached your signed Equipment Rental Agreement (${r.contractNum}) covering order ${order.oid}, including the itemized equipment schedule (Exhibit A).`,footer:r.footer,attachment:`${r.contractNum}.pdf`},...p]);
+  /* One contract per CART/purchase (group of order lines sharing gid), listing all items.
+     Lessee signature is stamped from the client's saved signature (they signed at checkout); Lessor is signed later by admin. */
+  const sendContract=(groupOrders)=>{
+    const arr=Array.isArray(groupOrders)?groupOrders:[groupOrders];
+    if(!arr.length)return null;
+    const first=arr[0];const gid=first.gid||first.oid;
+    if(contracts.some(c=>(c.gid||c.oid)===gid))return contracts.find(c=>(c.gid||c.oid)===gid);
+    const items=arr.map(o=>({name:o.un2||o.un||"Equipment",cat:o.ut||"",days:o.days||0,qty:o.qty||1,rate:o.tp||0,deposit:o.dp||o.reservationPaid||0}));
+    const rep={...first,items,oid:arr.map(o=>o.oid).join(", "),approvedAt:first.approvedAt||nowISO()};
+    const r=renderContract(contractTpl,rep,company);
+    const ls=signaturesAll[first.ue];
+    const rec={id:genCode("CT"),gid,contractNum:r.contractNum,oid:first.oid,orderNumbers:arr.map(o=>o.oid),client:first.un,email:first.ue,createdAt:nowISO(),status:"sent",title:r.title,body:r.body,footer:r.footer,
+      lesseeSig:ls?.dataUrl?{dataUrl:ls.dataUrl,name:first.un,signedAt:nowISO()}:null,lessorSig:null};
+    setContracts(p=>p.some(c=>(c.gid||c.oid)===gid)?p:[rec,...p]);
+    setEmailLog(p=>[{id:"email-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),sentAt:nowISO(),to:first.ue||"",toName:first.un||"",oid:first.oid,invoice:first.invNum||first.oid,subject:`Your Rental Agreement ${r.contractNum} — BTOP Rentals`,greeting:`Hi ${first.un||"Customer"},`,body:`Your payment has been approved. Please find attached your Equipment Rental Agreement (${r.contractNum}) covering order(s) ${arr.map(o=>o.oid).join(", ")}, including the itemized equipment schedule (Exhibit A).`,footer:r.footer,attachment:`${r.contractNum}.pdf`},...p]);
     return rec;
   };
-  /* Admin validates a manual payment (Zelle/Cash/Invoice) → confirm + send contract + confirmation email */
+  /* Admin validates a manual payment → approve the WHOLE purchase group + one confirmation email + one contract */
   const approveOrder=(oid)=>{
-    const o=orders.find(x=>x.oid===oid);
-    if(!o)return;
-    const approved={...o,status:"Confirmed",payState:"approved",approvedAt:nowISO(),expiresAt:null};
-    setOrders(p=>p.map(x=>x.oid===oid?approved:x));
-    if(sendConfirmationEmail)sendConfirmationEmail(approved);
-    const c=sendContract(approved);
-    t(`Payment approved · agreement ${c.contractNum} emailed to ${approved.ue}`,"success");
+    const o=orders.find(x=>x.oid===oid);if(!o)return;
+    const gid=o.gid||o.oid;const at=nowISO();
+    const group=orders.filter(x=>(x.gid||x.oid)===gid).map(x=>({...x,status:"Confirmed",payState:"approved",approvedAt:at}));
+    setOrders(p=>p.map(x=>(x.gid||x.oid)===gid?{...x,status:"Confirmed",payState:"approved",approvedAt:at,expiresAt:null}:x));
+    if(sendConfirmationEmail)sendConfirmationEmail(group[0]);
+    const c=sendContract(group);
+    t(`Payment approved · agreement ${c?.contractNum||""} emailed to ${o.ue}`,"success");
   };
   const rejectOrder=(oid)=>{
-    setOrders(p=>p.map(x=>x.oid===oid?{...x,status:"Cancelled",payState:"rejected"}:x));
+    const o=orders.find(x=>x.oid===oid);const gid=o?(o.gid||o.oid):oid;
+    setOrders(p=>p.map(x=>(x.gid||x.oid)===gid?{...x,status:"Cancelled",payState:"rejected"}:x));
     t("Payment rejected. Order cancelled.","error");
   };
 
@@ -3587,8 +3598,10 @@ export default function App(){
     /* Stripe & company credit are auto-approved. Zelle/Cash: pending manual validation. */
     const auto=payMethod==="card"||payMethod==="credit";
     const expISO=new Date(Date.now()+PENDING_TTL_DAYS*86400000).toISOString();
+    const gid="GRP-"+Math.random().toString(36).substr(2,8).toUpperCase(); /* one purchase = one group = one contract */
     const nw=cart.map((i,idx)=>({...i,
       oid:"ORD-"+Math.random().toString(36).substr(2,8).toUpperCase(),
+      gid,
       invNum:invBase+(cart.length>1?"-"+(idx+1):""),
       status:auto?"Confirmed":"Pending",
       payState:auto?"approved":(payMethod==="cash"?"awaiting_cash":"awaiting_validation"),
@@ -3603,8 +3616,8 @@ export default function App(){
       settlementStatus:"pending",settlementTotal:0,settlementNotes:"",settlementPaid:false,
     }));
     setOrders(p=>[...p,...nw]);
-    /* Auto-approved gateways immediately get a confirmation email + rental contract */
-    if(auto)nw.forEach(o=>{if(sendConfirmationEmail)sendConfirmationEmail(o);sendContract(o);});
+    /* Auto-approved gateways: ONE confirmation email + ONE contract for the whole purchase */
+    if(auto){if(sendConfirmationEmail)sendConfirmationEmail(nw[0]);sendContract(nw);}
     /* Mark the live cart as converted and release the active cart code */
     if(cartCode){setCarts(prev=>prev.map(c=>c.code===cartCode?{...c,status:"converted",updatedAt:nowISO(),orderRefs:nw.map(o=>o.oid)}:c));setCartCode(null);}
     /* Mirror each line to deliveries so Headquarters sees the same event */
@@ -3729,7 +3742,7 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
       {view==="book"&&<Bk fleet={fleet} ac={addCart} sv={setView} t={t} bookings={fleetBookings}/>}
       {view==="admin"&&user?.role==="admin"&&<Ad fleet={fleet} sf={setFleet} spaces={spaces} setSpaces={setSpaces} contacts={contacts} setContacts={setContacts} orders={orders} setOrders={setOrders} t={t} sv={setView} messages={messages} setMessages={setMessages} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} logout={logout} alarmEnabled={alarmEnabled} setAlarmEnabled={setAlarmEnabled} alarmActive={alarmActive} setAlarmActive={setAlarmActive} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars} carts={carts} setCarts={setCarts} contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} creditLines={creditLines} setCreditLines={setCreditLines} approveOrder={approveOrder} rejectOrder={rejectOrder} company={company} setCompany={setCompany} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll} signaturesAll={signaturesAll} saveMySignature={saveMySignature} mySignature={mySignature}/>}
       {view==="hqfield"&&(user?.role==="sede"||user?.role==="admin")&&<FieldHQ fleet={fleet} spaces={spaces} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} user={user} sv={setView} logout={logout}/>}
-      {view==="checkout"&&user&&<CheckoutPage cart={cart} rmCart={rmCart} cTotal={cTotal} user={user} confirm={confirmOrder} cancel={()=>setView("home")} sv={setView} company={company} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} creditUsed={orders.filter(o=>(o.payMethod==="credit"||o.payMethod==="invoice")&&o.ue===user.email&&o.status!=="Cancelled"&&!o.settlementPaid).reduce((s,o)=>s+(o.tp||0),0)} savedPays={savedPays}/>}
+      {view==="checkout"&&user&&<CheckoutPage cart={cart} rmCart={rmCart} cTotal={cTotal} user={user} confirm={confirmOrder} cancel={()=>setView("home")} sv={setView} company={company} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} creditUsed={orders.filter(o=>(o.payMethod==="credit"||o.payMethod==="invoice")&&o.ue===user.email&&o.status!=="Cancelled"&&!o.settlementPaid).reduce((s,o)=>s+(o.tp||0),0)} savedPays={savedPays} mySignature={mySignature} saveMySignature={saveMySignature}/>}
       {view==="client"&&user?.role==="client"&&<Cl orders={orders.filter(o=>o.ue===user.email)} sv={setView} user={user} contacts={contacts} setContacts={setContacts} logout={logout} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} orders_all={orders} savedPays={savedPays} setSavedPays={setSavedPays} t={t} clientDocs={clientDocs} addClientDoc={addClientDoc} removeClientDoc={removeClientDoc} depositReturnPref={depositReturnPref} setDepositReturnPref={setDepositReturnPref} mySignature={mySignature} saveMySignature={saveMySignature}/>}
     </main>
 
@@ -3855,6 +3868,8 @@ function Home({fleet,sv,ac,t,bookings=[],cart=[],orders=[],spaces:propSpaces}){
   const setMilesFor=(i,v)=>setUnitMiles(p=>{const a=[...p];a[i]=Number(v)||0;return a});
   const setTimeFor=(i,v)=>setUnitTimes(p=>{const a=[...p];a[i]=v;return a});
   const setDateFor=(i,field,v)=>setUnitDates(p=>{const a=[...p];a[i]={...a[i],[field]:v};return a});
+  /* Apply the active unit's dates + pickup time to every unit at once */
+  const applyDatesToAll=()=>{const src=unitDates[activeUnit];const tm=unitTimes[activeUnit];if(!src?.s||!src?.e)return;setUnitDates(p=>p.map(()=>({s:src.s,e:src.e,sel:"start"})));setUnitTimes(p=>p.map(()=>tm));};
   /* Compat aliases for storage booking (still uses single dates) */
   const qs=unitDates[0]?.s;const qe=unitDates[0]?.e;const qsel=unitDates[0]?.sel||"start";
   const setQs=v=>setDateFor(0,"s",v);const setQe=v=>setDateFor(0,"e",v);const setQsel=v=>setDateFor(0,"sel",v);
@@ -4057,6 +4072,8 @@ function Home({fleet,sv,ac,t,bookings=[],cart=[],orders=[],spaces:propSpaces}){
                   </button>;
                 })}
               </div>}
+              {/* APPLY TO ALL UNITS */}
+              {qty>1&&unitDates[activeUnit]?.s&&unitDates[activeUnit]?.e&&<button onClick={applyDatesToAll} style={{display:"inline-flex",alignItems:"center",gap:8,marginBottom:18,padding:"10px 16px",background:"var(--b0)",border:"1px solid var(--b2)",borderRadius:10,cursor:"pointer",fontSize:13,fontWeight:700,color:"var(--b7)"}}>📋 Apply Unit {activeUnit+1}'s dates &amp; time ({dStr(unitDates[activeUnit].s)} → {dStr(unitDates[activeUnit].e)}, {unitTimes[activeUnit]}) to all {qty} units</button>}
               {/* CALENDAR + TIME for active unit */}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:32}} className="mf">
                 <div>
@@ -4443,7 +4460,9 @@ function Ct({cart,rm,co,total,sv,user,dl,dr}){
 
 /* ═══════ AUTH ═══════ */
 /* ═══ CHECKOUT ═══ */
-function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv,company={},creditLine,creditUsed=0,savedPays=[]}){
+function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv,company={},creditLine,creditUsed=0,savedPays=[],mySignature,saveMySignature}){
+  const [sigModal,setSigModal]=useState(false);
+  const [agreeSign,setAgreeSign]=useState(false);
   /* Default to the client's default saved method (card/cash) so it opens first */
   const _defType=(savedPays.find(p=>p.isDefault)||savedPays[0]||{}).type;
   const [payMethod,setPayMethod]=useState(_defType==="cash"?"cash":"card");
@@ -4464,6 +4483,7 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv,company={},cred
   const creditAvail=creditLine?Math.max(0,(creditLine.limit||0)-creditUsed):0;
 
   const doConfirm=()=>{
+    if(!agreeSign||!mySignature?.dataUrl)return; /* client must sign the agreement first */
     if(payMethod==="credit"){
       if(!creditLine||grandTotal>creditAvail)return; /* guarded by the panel message */
       confirm(payMethod,payDetail);setStep("done");return;
@@ -4571,9 +4591,14 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv,company={},cred
       <div className="cd" style={{padding:24,marginBottom:24}}>
         <h3 style={{fontWeight:700,color:"var(--navy)",marginBottom:20}}>Select Payment Method</h3>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12,marginBottom:24}}>
-          {[["card","Credit / Debit Card","💳","Secure via Stripe"],["zelle","Zelle","Z","Direct transfer"],["cash","Cash / Check","💵","Pay at our office"],...(creditLine?[["credit","Company Account","🏢",`Credit available: ${$(creditAvail)}`]]:[])].map(([v,l,ic,d])=>
+          {[
+            ["card","Credit / Debit Card",<span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",height:30,padding:"0 11px",borderRadius:7,background:"#635BFF",color:"#fff",fontWeight:800,fontSize:15,fontStyle:"italic",letterSpacing:.2}}>stripe</span>,"Secure via Stripe"],
+            ["zelle","Zelle",<span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:32,height:32,borderRadius:8,background:"#6D1ED4",color:"#fff",fontWeight:800,fontSize:19,fontStyle:"italic"}}>Z</span>,"Direct transfer"],
+            ["cash","Cash / Check",<span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:32,height:32,borderRadius:8,background:"#0E9F6E"}}><X n="dol" s={18} c="#fff"/></span>,"Pay at our office"],
+            ...(creditLine?[["credit","Company Account",<span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:32,height:32,borderRadius:8,background:"#1e3a5f",color:"#fff",fontSize:16}}>🏢</span>,`Credit available: ${$(creditAvail)}`]]:[])
+          ].map(([v,l,ic,d])=>
             <button key={v} onClick={()=>{setPayMethod(v);if(v==="cash")setCashModal(true)}} style={{padding:20,borderRadius:14,border:payMethod===v?"2px solid var(--b5)":"2px solid var(--g2)",background:payMethod===v?"var(--b0)":"#fff",cursor:"pointer",textAlign:"left"}}>
-              <div style={{fontSize:28,marginBottom:6}}>{ic}</div>
+              <div style={{height:34,display:"flex",alignItems:"center",marginBottom:8}}>{ic}</div>
               <div style={{fontWeight:700,fontSize:14,color:"var(--navy)"}}>{l}</div>
               <div style={{fontSize:12,color:"var(--g5)",marginTop:2}}>{d}</div>
             </button>
@@ -4661,11 +4686,26 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv,company={},cred
         <div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"rgba(255,255,255,.5)"}}><span>Rental estimate</span><span>{$(totalRental)}</span></div><div style={{borderTop:"1px solid rgba(255,255,255,.2)",paddingTop:12,marginTop:8,display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:800,fontSize:20}}>Deposit (Pay Now)</span><span style={{fontFamily:"var(--fm)",fontWeight:800,fontSize:24}}>{$(totalDep)}</span></div>
       </div>
 
+      {/* SIGN RENTAL AGREEMENT — make the client aware their signature will be applied */}
+      <div className="cd" style={{padding:20,marginBottom:24,border:agreeSign?"2px solid var(--green)":"2px solid var(--b1)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><div style={{width:38,height:38,borderRadius:10,background:"var(--b0)",display:"flex",alignItems:"center",justifyContent:"center"}}><X n="edit" s={18} c="var(--b6)"/></div><div><h3 style={{fontWeight:800,fontSize:15,color:"var(--navy)"}}>Sign rental agreement</h3><p style={{fontSize:12,color:"var(--g5)"}}>Your electronic signature is applied to the rental agreement for this order.</p></div></div>
+        {mySignature?.dataUrl?<div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+          <div style={{width:180,height:64,border:"1px solid var(--g2)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",background:"#fff"}}><img src={mySignature.dataUrl} alt="signature" style={{maxHeight:52,maxWidth:165,objectFit:"contain"}}/></div>
+          <button onClick={()=>setSigModal(true)} style={{background:"none",border:"none",color:"var(--b6)",cursor:"pointer",fontWeight:600,fontSize:13}}>Change signature</button>
+        </div>:<button onClick={()=>setSigModal(true)} className="btn bp bsm"><X n="edit" s={14}/>Add your signature</button>}
+        <label style={{display:"flex",alignItems:"flex-start",gap:10,marginTop:14,padding:12,borderRadius:10,cursor:mySignature?.dataUrl?"pointer":"not-allowed",background:agreeSign?"#D1FAE5":"var(--g0)",border:agreeSign?"2px solid var(--green)":"2px solid var(--g2)",opacity:mySignature?.dataUrl?1:.6}}>
+          <input type="checkbox" disabled={!mySignature?.dataUrl} checked={agreeSign} onChange={e=>setAgreeSign(e.target.checked)} style={{width:18,height:18,marginTop:1,accentColor:"var(--green)"}}/>
+          <span style={{fontSize:12,color:"var(--g7)",lineHeight:1.5}}>I authorize BTOP to affix my electronic signature to the rental agreement for this order, and agree it is the legal equivalent of my handwritten signature (U.S. ESIGN Act &amp; UETA).</span>
+        </label>
+      </div>
+
       <div style={{display:"flex",gap:12}}>
         <button onClick={()=>setStep("review")} className="btn bs blg" style={{flex:1,justifyContent:"center"}}>← Back</button>
-        <button onClick={doConfirm} className="btn bp blg" style={{flex:2,justifyContent:"center",fontSize:16}}><X n="ok" s={18}/>{payMethod==="card"?"Go to secure payment":payMethod==="zelle"?"Submit payment report":payMethod==="cash"?"Place order (pay at office)":"Place order"}</button>
+        <button onClick={doConfirm} disabled={!agreeSign} className="btn bp blg" style={{flex:2,justifyContent:"center",fontSize:16,opacity:agreeSign?1:.5,cursor:agreeSign?"pointer":"not-allowed"}}><X n={agreeSign?"ok":"lock"} s={18}/>{!agreeSign?"Sign agreement to continue":payMethod==="card"?"Sign & go to secure payment":payMethod==="zelle"?"Sign & submit payment report":payMethod==="cash"?"Sign & place order":"Sign & place order"}</button>
       </div>
     </div>}
+
+    {sigModal&&<SignaturePad title="Your signature" onClose={()=>setSigModal(false)} onSave={(d)=>{saveMySignature&&saveMySignature(d);setSigModal(false)}}/>}
 
     {/* CASH / CHEQUE — CONTACT MODAL */}
     {cashModal&&<div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.45)",padding:16}} onClick={()=>setCashModal(false)}>
@@ -4884,7 +4924,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
           {section==="carts"&&<CartsMod carts={carts} setCarts={setCarts} contacts={contacts}/>}
           {section==="orderspay"&&<OrdersPayMod orders={orders} setOrders={setOrders} approveOrder={approveOrder} rejectOrder={rejectOrder}/>}
           {section==="credit"&&<CreditMod creditLines={creditLines} setCreditLines={setCreditLines} orders={orders} contacts={contacts}/>}
-          {section==="contracts"&&<ContractsMod contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} signaturesAll={signaturesAll} company={company}/>}
+          {section==="contracts"&&<ContractsMod contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} signaturesAll={signaturesAll} company={company} setCompany={setCompany}/>}
           {section==="posts"&&<PostsMod/>}
           {section==="messages"&&<MessagesMod messages={messages} setMessages={setMessages}/>}
           {section==="pay"&&<PayMod/>}
