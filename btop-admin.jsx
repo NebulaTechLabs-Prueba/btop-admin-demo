@@ -1590,7 +1590,7 @@ function BookingsMod(){
 }
 
 /* ═══ CONTACTS ═══ */
-function ContactsMod({contacts:propContacts,setContacts:propSetContacts,orders=[],clientDocsAll={}}){
+function ContactsMod({contacts:propContacts,setContacts:propSetContacts,orders=[],clientDocsAll={},depositReturnAll={}}){
   const [q,setQ]=useState("");
   /* Use props if provided (single source of truth from App), otherwise fallback to local state */
   const [localContacts,setLocalContacts]=useState(admSeedContacts);
@@ -1741,6 +1741,24 @@ function ContactsMod({contacts:propContacts,setContacts:propSetContacts,orders=[
                   <div className="min-w-0"><div className="text-sm font-semibold text-stone-800 truncate">📄 {doc.name}</div><div className="text-[10px] text-stone-400 uppercase">{doc.category} · {new Date(doc.uploadedAt).toLocaleDateString()}</div></div>
                   <button onClick={()=>downloadDoc(doc)} className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1 shrink-0"><Download className="w-3.5 h-3.5"/>Download</button>
                 </div>)}</div>}
+              </div>
+            </div>})()}
+
+            {/* DEPOSIT RETURN PREFERENCE — set by the client, read-only for admin */}
+            {(()=>{const dr=depositReturnAll[viewing.email];return <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-stone-200 bg-stone-50"><h4 className="font-bold text-sm flex items-center gap-2">💸 Deposit Return Preference</h4></div>
+              <div className="p-4 text-sm">
+                {!dr?<p className="text-xs text-stone-500">The client hasn't set a preferred deposit-return method yet.</p>
+                :<div className="space-y-1.5">
+                  <div className="flex justify-between"><span className="text-stone-500">Method</span><span className="font-semibold">{dr.method==="bank"?"Bank Transfer":dr.method==="zelle"?"Zelle":"Cash Pickup"}</span></div>
+                  {dr.method==="bank"&&<>
+                    <div className="flex justify-between"><span className="text-stone-500">Bank</span><span className="font-medium">{dr.bankName||"—"}</span></div>
+                    <div className="flex justify-between"><span className="text-stone-500">Routing</span><span className="font-mono">{dr.routingNumber||"—"}</span></div>
+                    <div className="flex justify-between"><span className="text-stone-500">Account</span><span className="font-mono">{dr.accountNumber||"—"}</span></div>
+                  </>}
+                  {dr.method==="zelle"&&<div className="flex justify-between"><span className="text-stone-500">Zelle</span><span className="font-medium">{dr.zelleEmail||"—"}</span></div>}
+                </div>}
+                <p className="text-[10px] text-stone-400 italic mt-3">Client preference only — the final return method can be agreed with the client at the time the deposit is returned.</p>
               </div>
             </div>})()}
 
@@ -3329,6 +3347,10 @@ export default function App(){
   const clientDocs=user?(clientDocsAll[user.email]||[]):[];
   const addClientDoc=(doc)=>{if(!user)return;setClientDocsAll(prev=>({...prev,[user.email]:[...(prev[user.email]||[]),doc]}))};
   const removeClientDoc=(id)=>{if(!user)return;setClientDocsAll(prev=>({...prev,[user.email]:(prev[user.email]||[]).filter(d=>d.id!==id)}))};
+  /* Client's preferred deposit-return method (visible to admin; final method may still be agreed at return time) */
+  const [depositReturnAll,setDepositReturnAll]=usePersistentState("btop_depositReturn",{});
+  const depositReturnPref=user?(depositReturnAll[user.email]||{method:"bank",bankName:"",routingNumber:"",accountNumber:"",zelleEmail:""}):null;
+  const setDepositReturnPref=(updater)=>{if(!user)return;setDepositReturnAll(prev=>{const cur=prev[user.email]||{method:"bank"};const next=typeof updater==="function"?updater(cur):updater;return{...prev,[user.email]:next}})};
   const [creditLines,setCreditLines]=usePersistentState("btop_creditLines_v3",[
     /* Seed credit lines tied to real demo clients (admSeedContacts) */
     {id:"CL-TEST",clientName:"Test Client",email:"cliente@test.com",limit:10000,terms:30,grantedAt:"2026-05-10T00:00:00.000Z",active:true},
@@ -3589,10 +3611,10 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
       {view==="register"&&<Re dr={doReg} sv={setView}/>}
       {view==="forgot"&&<Fo t={t} sv={setView}/>}
       {view==="book"&&<Bk fleet={fleet} ac={addCart} sv={setView} t={t} bookings={fleetBookings}/>}
-      {view==="admin"&&user?.role==="admin"&&<Ad fleet={fleet} sf={setFleet} spaces={spaces} setSpaces={setSpaces} contacts={contacts} setContacts={setContacts} orders={orders} setOrders={setOrders} t={t} sv={setView} messages={messages} setMessages={setMessages} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} logout={logout} alarmEnabled={alarmEnabled} setAlarmEnabled={setAlarmEnabled} alarmActive={alarmActive} setAlarmActive={setAlarmActive} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars} carts={carts} setCarts={setCarts} contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} creditLines={creditLines} setCreditLines={setCreditLines} approveOrder={approveOrder} rejectOrder={rejectOrder} company={company} setCompany={setCompany} clientDocsAll={clientDocsAll}/>}
+      {view==="admin"&&user?.role==="admin"&&<Ad fleet={fleet} sf={setFleet} spaces={spaces} setSpaces={setSpaces} contacts={contacts} setContacts={setContacts} orders={orders} setOrders={setOrders} t={t} sv={setView} messages={messages} setMessages={setMessages} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} logout={logout} alarmEnabled={alarmEnabled} setAlarmEnabled={setAlarmEnabled} alarmActive={alarmActive} setAlarmActive={setAlarmActive} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars} carts={carts} setCarts={setCarts} contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} creditLines={creditLines} setCreditLines={setCreditLines} approveOrder={approveOrder} rejectOrder={rejectOrder} company={company} setCompany={setCompany} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll}/>}
       {view==="hqfield"&&(user?.role==="sede"||user?.role==="admin")&&<FieldHQ fleet={fleet} spaces={spaces} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} user={user} sv={setView} logout={logout}/>}
       {view==="checkout"&&user&&<CheckoutPage cart={cart} rmCart={rmCart} cTotal={cTotal} user={user} confirm={confirmOrder} cancel={()=>setView("home")} sv={setView} company={company} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} creditUsed={orders.filter(o=>(o.payMethod==="credit"||o.payMethod==="invoice")&&o.ue===user.email&&o.status!=="Cancelled"&&!o.settlementPaid).reduce((s,o)=>s+(o.tp||0),0)} savedPays={savedPays}/>}
-      {view==="client"&&user?.role==="client"&&<Cl orders={orders.filter(o=>o.ue===user.email)} sv={setView} user={user} contacts={contacts} setContacts={setContacts} logout={logout} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} orders_all={orders} savedPays={savedPays} setSavedPays={setSavedPays} t={t} clientDocs={clientDocs} addClientDoc={addClientDoc} removeClientDoc={removeClientDoc}/>}
+      {view==="client"&&user?.role==="client"&&<Cl orders={orders.filter(o=>o.ue===user.email)} sv={setView} user={user} contacts={contacts} setContacts={setContacts} logout={logout} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} orders_all={orders} savedPays={savedPays} setSavedPays={setSavedPays} t={t} clientDocs={clientDocs} addClientDoc={addClientDoc} removeClientDoc={removeClientDoc} depositReturnPref={depositReturnPref} setDepositReturnPref={setDepositReturnPref}/>}
     </main>
 
     {/* SLIDE-OUT CART */}
@@ -4624,7 +4646,7 @@ function Fo({t,sv}){const [em,sem]=useState("");const [sent,ss]=useState(false);
 }
 
 /* ═══════ ADMIN ═══════ */
-function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,setMessages,deliveries,setDeliveries,bookings,setBookings,orders,setOrders,logout,alarmEnabled,setAlarmEnabled,alarmActive,setAlarmActive,emailTemplate,setEmailTemplate,emailLog,sendConfirmationEmail,renderEmailVars,carts,setCarts,contracts,setContracts,contractTpl,setContractTpl,creditLines,setCreditLines,approveOrder,rejectOrder,company,setCompany,clientDocsAll}){
+function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,setMessages,deliveries,setDeliveries,bookings,setBookings,orders,setOrders,logout,alarmEnabled,setAlarmEnabled,alarmActive,setAlarmActive,emailTemplate,setEmailTemplate,emailLog,sendConfirmationEmail,renderEmailVars,carts,setCarts,contracts,setContracts,contractTpl,setContractTpl,creditLines,setCreditLines,approveOrder,rejectOrder,company,setCompany,clientDocsAll,depositReturnAll}){
   const [section,setSection]=useState("dash");
   /* Clear alarm when admin opens a section where the new order is visible */
   useEffect(()=>{
@@ -4742,7 +4764,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
           {section==="bookings"&&<BookingsMod/>}
           {section==="reservations"&&<ReservationsMod orders={orders} setOrders={setOrders} fleetBookings={bookings} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars}/>}
           {section==="settlement"&&<SettlementMod orders={orders} setOrders={setOrders} deliveries={deliveries} fleet={fleet}/>}
-          {section==="contacts"&&<ContactsMod contacts={contacts} setContacts={setContacts} orders={orders} clientDocsAll={clientDocsAll}/>}
+          {section==="contacts"&&<ContactsMod contacts={contacts} setContacts={setContacts} orders={orders} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll}/>}
           {section==="carts"&&<CartsMod carts={carts} setCarts={setCarts} contacts={contacts}/>}
           {section==="orderspay"&&<OrdersPayMod orders={orders} setOrders={setOrders} approveOrder={approveOrder} rejectOrder={rejectOrder}/>}
           {section==="credit"&&<CreditMod creditLines={creditLines} setCreditLines={setCreditLines} orders={orders} contacts={contacts}/>}
@@ -4771,7 +4793,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
   );
 }
 
-function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all=[],savedPays=[],setSavedPays,t,clientDocs=[],addClientDoc,removeClientDoc}){
+function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all=[],savedPays=[],setSavedPays,t,clientDocs=[],addClientDoc,removeClientDoc,depositReturnPref,setDepositReturnPref}){
   const [tab,sTab]=useState("info");
   const [editing,sEditing]=useState(false);
   const [prof,sProf]=useState({
@@ -4789,7 +4811,8 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all
   const [cashForm,sCashForm]=useState({name:"",phone:"",confirm:false,time:""});
   const [invForm,sInvForm]=useState({company:"",taxId:"",address:"",billingEmail:"",contact:"",phone:"",notes:""});
   const [docs,sDocs]=useState([]);
-  const [depositReturn,setDepositReturn]=useState({method:"bank",bankName:"",routingNumber:"",accountNumber:"",paypalEmail:"",zelleEmail:"",cashPickup:false});
+  const depositReturn=depositReturnPref||{method:"bank",bankName:"",routingNumber:"",accountNumber:"",zelleEmail:""};
+  const setDepositReturn=setDepositReturnPref||(()=>{});
   const [pw,sPw]=useState({current:"",newPw:"",confirm:""});
   const [pwMsg,sPwMsg]=useState(null);
   const [delModal,setDelModal]=useState(false);
@@ -5019,9 +5042,10 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all
             <div className="ig"><label>Zelle Email or Phone</label><input className="inf" value={depositReturn.zelleEmail} onChange={e=>setDepositReturn(p=>({...p,zelleEmail:e.target.value}))} placeholder="email@example.com or (469) 555-0000"/></div>
           </div>}
           {depositReturn.method==="cash"&&<div style={{maxWidth:500,padding:20,background:"var(--g0)",borderRadius:14}}>
-            <p style={{fontSize:13,color:"var(--g5)"}}><X n="map" s={14} c="var(--b5)"/> Pick up your deposit in person at our office: <strong>9807 Mines Rd #9, Laredo TX 78045</strong></p>
+            <p style={{fontSize:13,color:"var(--g5)"}}><X n="map" s={14} c="var(--b5)"/> Pick up your deposit in person at our office.</p>
           </div>}
-          <button className="btn bp bsm" style={{marginTop:12}}><X n="ok" s={14}/>Save Deposit Return Info</button>
+          <p style={{fontSize:12,color:"var(--g5)",marginTop:12,maxWidth:520}}>This is your <strong>preferred</strong> method — BTOP staff can see it. The final method can still be agreed with you when the deposit is actually returned.</p>
+          <button onClick={()=>t&&t("Deposit return preference saved","success")} className="btn bp bsm" style={{marginTop:12}}><X n="ok" s={14}/>Save Deposit Return Info</button>
         </div>
       </div>}
 
