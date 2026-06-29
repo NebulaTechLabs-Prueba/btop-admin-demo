@@ -2528,7 +2528,7 @@ function ConfigMod({gateways,setGateways,hours,setHours,alarmEnabled,setAlarmEna
           <button onClick={()=>setEditCompany(false)} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 text-white rounded-full text-sm"><Check className="w-3.5 h-3.5"/>Save Changes</button>
         </div>:<div className="space-y-3">{[["Company",company.name],["Address",company.address],["Phone",company.phone],["Email",company.email],["Hours",company.hours],["Representative",company.repName||"—"]].map(([l,v])=>(<div key={l} className="flex justify-between py-2 border-b border-stone-100 last:border-0 text-sm"><span className="text-stone-500">{l}</span><span className="font-medium">{v}</span></div>))}<div className="flex justify-between py-2 text-sm"><span className="text-stone-500">Rep. signature</span>{company.repSignature?<img src={company.repSignature} alt="sig" className="max-h-8 object-contain"/>:<span className="text-stone-400">Not set</span>}</div></div>}
       </SC>
-      {repSigOpen&&<SignaturePad title="BTOP representative signature" onClose={()=>setRepSigOpen(false)} onSave={(d)=>{setCompany(p=>({...p,repSignature:d}));setRepSigOpen(false)}}/>}
+      {repSigOpen&&<SignaturePad title="BTOP representative signature" onClose={()=>setRepSigOpen(false)} onSave={(d)=>{setCompany(p=>({...p,repSignature:d,repConsentAt:nowISO()}));setRepSigOpen(false)}}/>}
 
       {/* HOURS */}
       <SC title="Business Hours" action={<button onClick={()=>setEditHours(!editHours)} className="text-xs text-blue-700 font-medium">{editHours?"Done":"Edit"}</button>}>
@@ -2898,6 +2898,7 @@ function SignaturePad({onSave,onClose,title="Add your signature"}){
   const [dirty,setDirty]=useState(false);
   const [typed,setTyped]=useState("");
   const [uploaded,setUploaded]=useState("");
+  const [consent,setConsent]=useState(false);
   useEffect(()=>{if(mode!=="draw")return;const c=ref.current;if(!c)return;const ctx=c.getContext("2d");ctx.lineWidth=2.5;ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#0a1628";},[mode]);
   const pt=(e)=>{const c=ref.current,r=c.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(c.width/r.width),y:(t.clientY-r.top)*(c.height/r.height)}};
   const down=(e)=>{e.preventDefault();st.current.on=true;st.current.last=pt(e)};
@@ -2906,7 +2907,8 @@ function SignaturePad({onSave,onClose,title="Add your signature"}){
   const clearDraw=()=>{const c=ref.current;if(c)c.getContext("2d").clearRect(0,0,c.width,c.height);setDirty(false)};
   const onUpload=(e)=>{const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>setUploaded(r.result);r.readAsDataURL(f)};
   const typedToImage=()=>{const cv=document.createElement("canvas");cv.width=920;cv.height=300;const ctx=cv.getContext("2d");ctx.fillStyle="#0a1628";ctx.textAlign="center";ctx.textBaseline="middle";ctx.font="120px 'Brush Script MT','Segoe Script',cursive";ctx.fillText(typed.trim(),460,150);return cv.toDataURL("image/png")};
-  const canSave=mode==="draw"?dirty:mode==="type"?!!typed.trim():!!uploaded;
+  const hasSig=mode==="draw"?dirty:mode==="type"?!!typed.trim():!!uploaded;
+  const canSave=hasSig&&consent;
   const save=()=>{if(!canSave)return;onSave(mode==="draw"?ref.current.toDataURL("image/png"):mode==="type"?typedToImage():uploaded)};
   const Tab=({m,l})=><button onClick={()=>setMode(m)} className="btn bsm" style={{flex:1,justifyContent:"center",background:mode===m?"var(--b6)":"#fff",color:mode===m?"#fff":"var(--g7)",border:mode===m?"none":"1px solid var(--g3)"}}>{l}</button>;
   return <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.5)",padding:16}} onClick={onClose}>
@@ -2921,6 +2923,11 @@ function SignaturePad({onSave,onClose,title="Add your signature"}){
       {mode==="upload"&&<><p style={{fontSize:12,color:"var(--g5)",marginBottom:8}}>Upload a photo/scan of your signature (PNG/JPG).</p>
         <input type="file" accept="image/*" onChange={onUpload} style={{fontSize:13}}/>
         {uploaded&&<div style={{height:140,border:"2px dashed var(--g3)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",marginTop:10,padding:8}}><img src={uploaded} alt="signature" style={{maxHeight:120,maxWidth:"100%",objectFit:"contain"}}/></div>}</>}
+      {/* ESIGN/UETA consent — affirmative intent + consent to sign electronically */}
+      <label style={{display:"flex",alignItems:"flex-start",gap:10,marginTop:14,padding:12,borderRadius:10,cursor:"pointer",background:consent?"#D1FAE5":"var(--g0)",border:consent?"2px solid var(--green)":"2px solid var(--g2)"}}>
+        <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} style={{width:18,height:18,marginTop:1,accentColor:"var(--green)"}}/>
+        <span style={{fontSize:12,color:"var(--g7)",lineHeight:1.5}}>I agree to use electronic records and signatures, and that my electronic signature is the legal equivalent of my handwritten signature on the agreements it is applied to (U.S. ESIGN Act &amp; UETA).</span>
+      </label>
       <div style={{display:"flex",gap:10,marginTop:14}}>
         {mode==="draw"&&<button onClick={clearDraw} className="btn bs" style={{flex:1,justifyContent:"center"}}>Clear</button>}
         <button onClick={save} disabled={!canSave} className="btn bp" style={{flex:2,justifyContent:"center",opacity:canSave?1:.5}}><X n="ok" s={16}/>Save signature</button>
@@ -2930,7 +2937,7 @@ function SignaturePad({onSave,onClose,title="Add your signature"}){
 }
 
 /* ─── Generate the rental contract as a real PDF with both hand-drawn signatures embedded ─── */
-function generateSignedPdf(c,{clientSig,repSig,repName,company={}}={}){
+function generateSignedPdf(c,{clientSig,repSig,repName,company={},clientSignedAt,repSignedAt}={}){
   const doc=new jsPDF({unit:"pt",format:"letter"});
   const PW=612,M=56,W=PW-M*2;let y=60;
   const head=()=>{doc.setFont("times","bold");doc.setTextColor(30,58,95);doc.setFontSize(15);doc.text((company.name||"BTOP RENTALS").toUpperCase(),PW/2,y,{align:"center"});y+=20;
@@ -2956,11 +2963,13 @@ function generateSignedPdf(c,{clientSig,repSig,repName,company={}}={}){
   /* AUDIT TRAIL — evidence for electronic-signature validity (US ESIGN/UETA, MX, EU eIDAS simple e-signature) */
   let fp=5381;const src=(c.body||"")+(c.contractNum||"")+(c.email||"");for(let i=0;i<src.length;i++){fp=((fp<<5)+fp+src.charCodeAt(i))>>>0;}
   const now=new Date();
+  const fmtA=(iso)=>{try{return iso?new Date(iso).toLocaleString("en-US"):null}catch(e){return null}};
   const audit=[
     `AUDIT TRAIL — Agreement ${c.contractNum||""} · Order ${c.oid||""}`,
-    `Lessee: ${c.client||""} (${c.email||""})   ·   Lessor representative: ${repName||"BTOP Rentals"}`,
+    `Lessee: ${c.client||""} (${c.email||""}) — signature ${clientSig?("captured "+(fmtA(clientSignedAt)||"in-app")):"pending"}`,
+    `Lessor: ${repName||"BTOP Rentals"} — signature ${repSig?("captured "+(fmtA(repSignedAt)||"in-app")):"pending"}`,
     `Generated: ${now.toLocaleString("en-US")} (${Intl.DateTimeFormat().resolvedOptions().timeZone||"local"})   ·   Document fingerprint: ${fp.toString(16).toUpperCase()}`,
-    `Consent: parties agreed to sign electronically by hand within the BTOP platform. Electronic signature per US ESIGN Act / UETA, Mexico, and EU eIDAS (simple electronic signature).`,
+    `Consent: each party affirmatively agreed to use electronic records and that their electronic signature is the legal equivalent of a handwritten signature, in compliance with the U.S. ESIGN Act (15 U.S.C. ch.96) and UETA.`,
   ];
   doc.setDrawColor(225);doc.line(M,lineY+38,PW-M,lineY+38);
   doc.setFontSize(7);doc.setTextColor(130);
@@ -3266,7 +3275,7 @@ function ContractsMod({contracts,setContracts,contractTpl,setContractTpl,signatu
   const sigFor=(c)=>signaturesAll[c.email];
   const repSig=company.repSignature;
   const signState=(c)=>{const l=!!sigFor(c),r=!!repSig;return l&&r?"both":l||r?"partial":"none"};
-  const downloadSigned=(c)=>generateSignedPdf(c,{clientSig:sigFor(c)?.dataUrl,repSig:repSig,repName:company.repName,company});
+  const downloadSigned=(c)=>generateSignedPdf(c,{clientSig:sigFor(c)?.dataUrl,repSig:repSig,repName:company.repName,company,clientSignedAt:sigFor(c)?.savedAt,repSignedAt:company.repConsentAt});
   const [from,setFrom]=useState("");
   const [to,setTo]=useState("");
   const ql=q.trim().toLowerCase();
@@ -3453,7 +3462,7 @@ export default function App(){
   /* Per-user hand-drawn signatures (each user saves one; replicated onto their contracts) — keyed by email */
   const [signaturesAll,setSignaturesAll]=usePersistentState("btop_signatures",{});
   const mySignature=user?signaturesAll[user.email]:null;
-  const saveMySignature=(dataUrl)=>{if(!user)return;setSignaturesAll(prev=>({...prev,[user.email]:{dataUrl,name:user.name,savedAt:nowISO()}}))};
+  const saveMySignature=(dataUrl)=>{if(!user)return;setSignaturesAll(prev=>({...prev,[user.email]:{dataUrl,name:user.name,email:user.email,savedAt:nowISO(),consent:true}}))};
   /* Client's preferred deposit-return method (visible to admin; final method may still be agreed at return time) */
   const [depositReturnAll,setDepositReturnAll]=usePersistentState("btop_depositReturn",{});
   const depositReturnPref=user?(depositReturnAll[user.email]||{method:"bank",bankName:"",routingNumber:"",accountNumber:"",zelleEmail:""}):null;
