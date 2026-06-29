@@ -4913,8 +4913,9 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
       <aside className={`admin-sidebar${drawerOpen?" open":""}`} style={{width:256,background:"#fff",borderRight:"1px solid #e7e5e4",display:"flex",flexDirection:"column",flexShrink:0,height:"100vh",overflow:"hidden"}}>
         <div style={{padding:"20px",borderBottom:"1px solid #e7e5e4",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:36,height:36,borderRadius:12,background:"#1e3a5f",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14}}>BT</div>
-            <span style={{fontWeight:700,fontSize:14,letterSpacing:"0.5px"}}>BTOP Rentals</span>
+            <div style={{background:"#0A1628",borderRadius:10,padding:"9px 12px",display:"flex",alignItems:"center"}}>
+              <img src={import.meta.env.BASE_URL+"btop-logo.svg"} alt="BTOP Rentals" style={{height:20,display:"block"}} onError={e=>{e.currentTarget.outerHTML="<span style='color:#fff;font-weight:700;font-size:14px'>BTOP</span>"}}/>
+            </div>
           </div>
           <button onClick={()=>setDrawerOpen(false)} className="admin-topbar-burger" style={{display:"none",background:"transparent",border:"none",cursor:"pointer",padding:4,color:"#78716c"}}>✕</button>
         </div>
