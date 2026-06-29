@@ -2344,7 +2344,7 @@ function AnalyticsMod(){
 }
 
 /* ═══ DASHBOARD ═══ */
-function DashMod({nav,fleet,spaces,orders=[],bookings=[]}){
+function DashMod({nav,fleet,spaces,orders=[],bookings=[],creditLines=[]}){
   const act=admSeedBookings.filter(b=>b.status==="active");
   /* Real numbers */
   const today=new Date().toISOString().split("T")[0];
@@ -2385,6 +2385,21 @@ function DashMod({nav,fleet,spaces,orders=[],bookings=[]}){
           items:admSeedContacts.map(c=>({title:c.name,subtitle:`${c.email} · ${c.orders||0} order${c.orders===1?"":"s"}${c.company?" · "+c.company:""}`,value:`$${(c.totalSpent||0).toLocaleString()}`}))
         }}/>
       </div>
+      {/* CREDIT OVERVIEW — ties the Credit & Overdue module into the dashboard */}
+      {(()=>{const active=creditLines.filter(c=>c.active);if(!active.length)return null;
+        const limit=active.reduce((s,c)=>s+(c.limit||0),0);
+        const used=active.reduce((s,c)=>s+orders.filter(o=>(o.payMethod==="credit"||o.payMethod==="invoice")&&o.ue===c.email&&o.status!=="Cancelled"&&!o.settlementPaid).reduce((a,o)=>a+(o.tp||0),0),0);
+        const today=new Date().toISOString().split("T")[0];
+        const overdue=orders.filter(o=>{if(!(o.payMethod==="credit"||o.payMethod==="invoice")||o.status==="Cancelled"||o.settlementPaid)return false;const cl=active.find(c=>c.email===o.ue);if(!cl)return false;const base=o.approvedAt||o.od||today;const due=new Date(new Date(base).getTime()+((cl.terms||30)*86400000)).toISOString().split("T")[0];return due<today;});
+        return <div className="bg-white border border-stone-200 rounded-2xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-semibold flex items-center gap-2"><CreditCard className="w-4 h-4 text-blue-700"/>Credit Overview</h3><button onClick={()=>nav("credit")} className="text-xs font-semibold text-blue-700 hover:underline">Manage →</button></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div><div className="text-[11px] text-stone-400 uppercase font-semibold">Credit clients</div><div className="text-xl font-bold mt-0.5">{active.length}</div></div>
+            <div><div className="text-[11px] text-stone-400 uppercase font-semibold">Extended</div><div className="text-xl font-bold mt-0.5">{$f(limit)}</div></div>
+            <div><div className="text-[11px] text-stone-400 uppercase font-semibold">Outstanding</div><div className="text-xl font-bold mt-0.5 text-amber-700">{$f(used)}</div></div>
+            <div><div className="text-[11px] text-stone-400 uppercase font-semibold">Overdue</div><div className={`text-xl font-bold mt-0.5 ${overdue.length?"text-red-600":"text-emerald-700"}`}>{overdue.length}</div></div>
+          </div>
+        </div>;})()}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">{[{l:"Fleet",i:Truck,t:"fleet"},{l:"Spaces",i:Warehouse,t:"spaces"},{l:"Bookings",i:Calendar,t:"bookings"},{l:"Contacts",i:Contact,t:"contacts"},{l:"Analytics",i:BarChart3,t:"analytics"}].map(q=>{const Ic=q.i;return (<button key={q.l} onClick={()=>nav(q.t)} className="bg-white border border-stone-200 rounded-2xl p-4 text-left hover:border-blue-400 hover:shadow-sm transition-all group"><div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center mb-3 group-hover:bg-blue-100"><Ic className="w-4 h-4"/></div><div className="text-sm font-medium">{q.l}</div></button>);})}</div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6"><div className="lg:col-span-2"><SC title="Revenue – 30 Days"><Area data={revS} color="#2563eb" height={180}/></SC></div>
         <SC title="Alerts" padded={false}><div className="divide-y divide-stone-100">{[{t:"Late Return",d:"Cascadia – 2 days overdue",l:"critical"},{t:"Maintenance",d:"Forklift service overdue",l:"warning"},{t:"New Contact",d:"Maria Gonzalez registered",l:"info"}].map((a,i)=>(<div key={i} className="px-5 py-3"><div className="flex items-start gap-3"><span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${a.l==="critical"?"bg-red-500":a.l==="warning"?"bg-amber-500":"bg-blue-500"}`}/><div><div className="text-sm font-medium">{a.t}</div><p className="text-xs text-stone-600">{a.d}</p></div></div></div>))}</div></SC>
@@ -4638,7 +4653,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
           </div>
         </div>
         <div className="admin-main-body text-stone-900" style={{padding:32}}>
-          {section==="dash"&&<DashMod nav={setSection} fleet={fleet} spaces={spaces} orders={orders} bookings={bookings}/>}
+          {section==="dash"&&<DashMod nav={setSection} fleet={fleet} spaces={spaces} orders={orders} bookings={bookings} creditLines={creditLines}/>}
           {section==="analytics"&&<AnalyticsMod/>}
           {section==="fleet"&&<FleetMod fleet={fleet} setFleet={setFleet} bookings={bookings} orders={orders}/>}
           {section==="detfleet"&&<DetailedFleetMod fleet={fleet} bookings={bookings} setFleet={setFleet}/>}
