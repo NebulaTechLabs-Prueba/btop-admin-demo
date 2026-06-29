@@ -2473,6 +2473,7 @@ function ConfigMod({gateways,setGateways,hours,setHours,alarmEnabled,setAlarmEna
   const [editHours,setEditHours]=useState(false);
   const [editCompany,setEditCompany]=useState(false);
   const [repSigOpen,setRepSigOpen]=useState(false);
+  const [resetConfirm,setResetConfirm]=useState(false);
   const gw=gateways;const sg=setGateways;
   const uGw=(key,field,val)=>sg(p=>({...p,[key]:{...p[key],[field]:val}}));
   /* Test-beep helper so the admin can preview the sound when enabling */
@@ -2577,6 +2578,18 @@ function ConfigMod({gateways,setGateways,hours,setHours,alarmEnabled,setAlarmEna
 
       {/* SECURITY */}
       <SC title="Security"><div className="space-y-3">{[{l:"Session Timeout (30m)",on:true}].map(s=>(<div key={s.l} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0"><span className="text-sm font-medium">{s.l}</span><div className={`w-10 h-6 rounded-full flex items-center px-0.5 cursor-pointer ${s.on?"bg-emerald-500":"bg-stone-300"}`}><div className={`w-5 h-5 bg-white rounded-full shadow-sm ${s.on?"translate-x-4":""}`}/></div></div>))}</div></SC>
+
+      {/* DEMO DATA RESET */}
+      <SC title="Demo Data">
+        <p className="text-sm text-stone-500 mb-3">This demo stores data (orders, carts, contracts, credit lines, signatures, etc.) in your browser. Reset it to clear test data and restore the seeded demo state.</p>
+        {!resetConfirm
+          ? <button onClick={()=>setResetConfirm(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-full text-sm font-semibold hover:bg-red-100"><Trash2 className="w-4 h-4"/>Reset demo data</button>
+          : <div className="flex items-center gap-3 flex-wrap p-3 bg-red-50 border border-red-200 rounded-xl">
+              <span className="text-sm text-red-800 font-semibold">This clears all local demo data and reloads. Continue?</span>
+              <button onClick={()=>{try{Object.keys(window.localStorage).filter(k=>k.startsWith("btop_")).forEach(k=>window.localStorage.removeItem(k))}catch(e){}window.location.reload()}} className="px-4 py-2 bg-red-600 text-white rounded-full text-sm font-semibold">Yes, reset &amp; reload</button>
+              <button onClick={()=>setResetConfirm(false)} className="px-4 py-2 border border-stone-200 rounded-full text-sm font-semibold">Cancel</button>
+            </div>}
+      </SC>
     </div>
   );
 }
