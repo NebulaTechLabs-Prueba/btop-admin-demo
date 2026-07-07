@@ -85,8 +85,8 @@ const admSeedContacts=[
   {id:"c3",name:"John Smith",email:"john@email.com",phone:"(469) 555-0505",city:"San Antonio",company:"Smith & Sons",idDoc:"TX DL 11223344",registered:"2025-11-01",lastOrder:"2026-04-08",totalSpent:2100,orders:5},
   {id:"c4",name:"Mike Johnson",email:"mike@email.com",phone:"(469) 555-0707",city:"Houston",company:"Johnson Freight",idDoc:"TX DL 55667788",registered:"2026-03-01",lastOrder:"2026-04-05",totalSpent:6200,orders:8},
   {id:"c5",name:"Sarah Davis",email:"sarah@email.com",phone:"(469) 555-0808",city:"Dallas",company:"",idDoc:"",registered:"2026-04-01",lastOrder:"2026-04-14",totalSpent:450,orders:1},
-  {id:"c6",name:"Roberto Perez",email:"roberto@email.com",phone:"(469) 555-0909",city:"Laredo",company:"Perez Transport",idDoc:"TX DL 99001122",registered:"2025-09-15",lastOrder:"2026-03-28",totalSpent:12400,orders:14},
-  {id:"c7",name:"ABC Transport",email:"ops@abctransport.com",phone:"(469) 555-1010",city:"Laredo",company:"ABC Transport LLC",idDoc:"EIN 82-1234567",registered:"2025-08-01",lastOrder:"2026-04-13",totalSpent:28500,orders:22},
+  {id:"c6",name:"Roberto Perez",email:"roberto@email.com",phone:"(469) 555-0909",city:"Laredo",company:"Perez Transport",idDoc:"TX DL 99001122",registered:"2025-09-15",lastOrder:"2026-03-28",totalSpent:12400,orders:14,hasAccount:true},
+  {id:"c7",name:"ABC Transport",email:"ops@abctransport.com",phone:"(469) 555-1010",city:"Laredo",company:"ABC Transport LLC",idDoc:"EIN 82-1234567",registered:"2025-08-01",lastOrder:"2026-04-13",totalSpent:28500,orders:22,hasAccount:true},
   {id:"c8",name:"Maria Gonzalez",email:"maria.g@email.com",phone:"(469) 555-1111",city:"McAllen",company:"",idDoc:"TX DL 33445566",registered:"2026-03-20",lastOrder:"",totalSpent:0,orders:0},
 ];
 
@@ -1594,7 +1594,7 @@ function BookingsMod(){
 }
 
 /* ═══ CONTACTS ═══ */
-function ContactsMod({contacts:propContacts,setContacts:propSetContacts,orders=[],clientDocsAll={},depositReturnAll={}}){
+function ContactsMod({contacts:propContacts,setContacts:propSetContacts,orders=[],clientDocsAll={},depositReturnAll={},sendMagicLink}){
   const [q,setQ]=useState("");
   /* Use props if provided (single source of truth from App), otherwise fallback to local state */
   const [localContacts,setLocalContacts]=useState(admSeedContacts);
@@ -1773,9 +1773,10 @@ function ContactsMod({contacts:propContacts,setContacts:propSetContacts,orders=[
               </div>
               <div className="p-4 space-y-2">
                 {!pwOpen?<>
-                  <p className="text-xs text-stone-600 mb-2">{viewing.hasAccount?"You can reset the password manually or send a reset link to the client.":"Set an initial password to enable login for this contact."}</p>
+                  <p className="text-xs text-stone-600 mb-2">{viewing.hasAccount?"You can reset the password manually or send a reset link to the client.":"This contact has no account. Recommended: send a one-time invite so the client sets their own password."}</p>
                   <div className="flex gap-2 flex-wrap">
-                    <button onClick={()=>setPwOpen(true)} className="flex-1 min-w-[140px] px-3 py-2 bg-blue-900 text-white rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5">{viewing.hasAccount?"🔐 Reset password":"🔐 Set password"}</button>
+                    {!viewing.hasAccount&&sendMagicLink&&<button onClick={()=>sendMagicLink(viewing)} className="flex-1 min-w-[160px] px-3 py-2 bg-blue-900 text-white rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5">🔗 Send account invite (magic link)</button>}
+                    <button onClick={()=>setPwOpen(true)} className="flex-1 min-w-[140px] px-3 py-2 border border-stone-200 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5">{viewing.hasAccount?"🔐 Reset password":"🔐 Set password manually"}</button>
                     {viewing.hasAccount&&<button onClick={sendResetLink} className="flex-1 min-w-[140px] px-3 py-2 border border-stone-200 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5">📨 Send reset link</button>}
                   </div>
                   {pwSent&&<div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 text-xs text-emerald-800">✓ Password reset link sent to {viewing.email}</div>}
@@ -3246,7 +3247,8 @@ function CreditMod({creditLines,setCreditLines,orders,contacts=[]}){
   const [showForm,setShowForm]=useState(false);
   /* Credit is granted to existing CLIENTS only — match against the client directory */
   const matchedClient=contacts.find(c=>c.email.toLowerCase()===form.email.trim().toLowerCase()||(form.clientName&&c.name.toLowerCase()===form.clientName.trim().toLowerCase()));
-  const canGrant=!!matchedClient&&!!form.limit;
+  const hasAccount=!!matchedClient?.hasAccount;
+  const canGrant=!!matchedClient&&hasAccount&&!!form.limit;
   /* Autocomplete: typing a client name auto-fills email (and vice-versa) */
   const onName=(v)=>{const m=contacts.find(c=>c.name===v);setForm(f=>({...f,clientName:v,email:m?m.email:f.email}))};
   const onEmail=(v)=>{const m=contacts.find(c=>c.email.toLowerCase()===v.trim().toLowerCase());setForm(f=>({...f,email:v,clientName:m?m.name:f.clientName}))};
@@ -3295,9 +3297,11 @@ function CreditMod({creditLines,setCreditLines,orders,contacts=[]}){
         </div>
         <datalist id="credit-client-names">{contacts.map(c=><option key={c.id} value={c.name}>{c.email}</option>)}</datalist>
         <datalist id="credit-client-emails">{contacts.map(c=><option key={c.id} value={c.email}>{c.name}</option>)}</datalist>
-        {(form.clientName||form.email)&&(matchedClient
-          ?<div className="mt-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5"/>Matched client: <strong>{matchedClient.name}</strong>{matchedClient.company?` · ${matchedClient.company}`:""} · {matchedClient.email}</div>
-          :<div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5"/>No matching client. Credit can only be granted to an existing client.</div>)}
+        {(form.clientName||form.email)&&(!matchedClient
+          ?<div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5"/>No matching client. Credit can only be granted to an existing client.</div>
+          :!hasAccount
+            ?<div className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 inline-flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5"/><strong>{matchedClient.name}</strong> has no BTOP account. Credit requires an account — send them a magic-link invite from Contacts first.</div>
+            :<div className="mt-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5"/>Matched client: <strong>{matchedClient.name}</strong>{matchedClient.company?` · ${matchedClient.company}`:""} · {matchedClient.email} · account ✓</div>)}
       </div>}
       {creditLines.length===0?<div className="text-center py-10 text-stone-400 text-sm">No credit lines yet. Grant one manually.</div>
       :<DT headers={["Client","Email","Limit","In use","Available","Terms","Status",""]} rows={creditLines.map(c=>{const used=outstandingFor(c.email);return [
@@ -3576,6 +3580,32 @@ function CommissionsMod({orders=[],users=[],commissionPolicy,setCommissionPolicy
   </div>;
 }
 
+/* ═══ MAGIC-LINK INVITE — client activates their own account by setting a password (one-time) ═══ */
+function InvitePage({invite,onAccept,sv}){
+  const [pw,setPw]=useState("");const [pw2,setPw2]=useState("");const [err,setErr]=useState("");
+  const valid=invite&&invite.status==="active";
+  const go=()=>{if(pw.length<8){setErr("Password must be at least 8 characters");return}if(pw!==pw2){setErr("Passwords do not match");return}setErr("");onAccept(pw)};
+  return <div className="fi" style={{minHeight:"80vh",display:"flex",alignItems:"center",justifyContent:"center",padding:24,background:"linear-gradient(135deg,var(--b0),var(--g0))"}}>
+    <div className="cd" style={{maxWidth:440,width:"100%",padding:40}}>
+      {!valid?<div style={{textAlign:"center"}}>
+        <div style={{fontSize:48,marginBottom:12}}>🔗</div>
+        <h2 style={{fontSize:22,fontWeight:800,color:"var(--navy)",marginBottom:8}}>Invite link invalid or already used</h2>
+        <p style={{color:"var(--g5)",fontSize:14,marginBottom:20}}>This is a one-time link and it has already been used or expired. Please ask BTOP to send you a new invite.</p>
+        <button onClick={()=>sv("home")} className="btn bp">Go to homepage</button>
+      </div>:<div>
+        <div style={{textAlign:"center",marginBottom:24}}><div style={{width:60,height:60,borderRadius:16,background:"linear-gradient(135deg,var(--b6),var(--b4))",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}><X n="lock" s={28} c="#fff"/></div><h2 style={{fontSize:22,fontWeight:800,color:"var(--navy)"}}>Set your password</h2><p style={{fontSize:13,color:"var(--g5)",marginTop:6}}>Welcome, {invite.name}. Create a password to activate your BTOP account for <strong>{invite.email}</strong>.</p></div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div className="ig"><label>New password</label><input className="inf" type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="Min 8 characters"/></div>
+          <div className="ig"><label>Confirm password</label><input className="inf" type="password" value={pw2} onChange={e=>setPw2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&go()}/></div>
+          {err&&<div style={{padding:"10px 14px",borderRadius:10,fontSize:13,fontWeight:600,background:"rgba(220,38,38,.1)",color:"var(--red)"}}>{err}</div>}
+          <button onClick={go} className="btn bp blg" style={{width:"100%",justifyContent:"center"}}>Create account &amp; sign in</button>
+          <p style={{fontSize:11,color:"var(--g5)",textAlign:"center"}}>This is a one-time link — after you set your password it becomes invalid.</p>
+        </div>
+      </div>}
+    </div>
+  </div>;
+}
+
 /* ═══════════════ APP ═══════════════ */
 export default function App(){
   const [view,setView]=useState("home");
@@ -3677,6 +3707,12 @@ export default function App(){
   const [contractPolicy,setContractPolicy]=usePersistentState("btop_contractPolicy",{sendWhen:"both"});
   /* Admin-configurable sales commission (general for all Sales): percentage or fixed, taken from company margin */
   const [commissionPolicy,setCommissionPolicy]=usePersistentState("btop_commissionPolicy",{mode:"percentage",value:5});
+  /* One-time account invites (magic link) */
+  const [invites,setInvites]=usePersistentState("btop_invites",[]);
+  const [magicLink,setMagicLink]=useState(null);
+  const [inviteToken,setInviteToken]=useState(null);
+  /* On load, honor a ?invite=TOKEN magic link */
+  useEffect(()=>{try{const tk=new URLSearchParams(window.location.search).get("invite");if(tk){setInviteToken(tk);setView("invite")}}catch(e){}},[]);
   /* Company profile — single source of truth for contact details (editable in Settings) */
   const [company,setCompany]=usePersistentState("btop_company",{name:"BTOP Rentals",address:"9807 Mines Rd #9, Laredo TX 78045",phone:"+1 469 690 712",email:"btoprentals@gmail.com",hours:"Mon–Fri 7AM–6PM · Sat 8AM–2PM"});
   /* Saved payment methods per client email (shared so checkout can prefill from the client's dashboard) */
@@ -3841,10 +3877,27 @@ export default function App(){
     if(alarmEnabled)setAlarmActive(true);
     t(`Reservation ${oid} scheduled for ${contact.name} — awaiting admin validation`,"success");
   };
-  /* Magic-link account invite (Batch A stub: validates fields + notifies; full set-password flow lands in Batch B) */
+  /* Magic-link account invite — one-time token so the CLIENT sets their own password (sales/admin can't create accounts) */
   const sendMagicLink=(contact)=>{
     if(!contact?.name||!contact?.email||!contact?.phone){t("Complete name, email and phone before sending the account invite","error");return}
-    t(`Account invite (magic link) generated for ${contact.email}`,"success");
+    if(users.find(u=>u.email===contact.email)){t("This contact already has an account","error");return}
+    const token=genCode("INV")+genCode("").slice(0,4);
+    setInvites(p=>[{token,email:contact.email,name:contact.name,phone:contact.phone||"",createdAt:nowISO(),status:"active",invitedBy:user?.email||"admin"},...p.filter(i=>!(i.email===contact.email&&i.status==="active"))]);
+    const url=`${location.origin}${location.pathname}?invite=${token}`;
+    setMagicLink({email:contact.email,name:contact.name,url});
+    t(`One-time account invite generated for ${contact.email}`,"success");
+  };
+  /* Client uses the magic link → sets a password → account is created, contact marked as account-holder, token invalidated */
+  const acceptInvite=(token,password)=>{
+    const inv=invites.find(i=>i.token===token&&i.status==="active");
+    if(!inv){t("This invite link is invalid or already used. Please request a new one.","error");return false}
+    if(users.find(u=>u.email===inv.email)){setInvites(p=>p.map(i=>i.token===token?{...i,status:"used"}:i));t("Account already exists — please sign in.","error");return false}
+    const nu={email:inv.email,pw:password,role:"client",name:inv.name,phone:inv.phone};
+    setUsers(p=>[...p,nu]);setUser(nu);
+    setContacts(p=>{const ex=p.find(c=>c.email===inv.email);if(ex)return p.map(c=>c.email===inv.email?{...c,hasAccount:true,phone:c.phone||inv.phone}:c);return[...p,{id:"c"+Date.now(),name:inv.name,email:inv.email,phone:inv.phone,city:"",company:"",idDoc:"",registered:new Date().toISOString().split("T")[0],lastOrder:"",totalSpent:0,orders:0,hasAccount:true}]});
+    setInvites(p=>p.map(i=>i.token===token?{...i,status:"used",usedAt:nowISO()}:i));
+    t("Account created! You're signed in.","success");
+    return true;
   };
 
   const goCheckout=()=>{
@@ -3981,6 +4034,18 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
   return <div style={{minHeight:"100vh"}}>
     <style>{css}</style>
     {toast&&<div className={"tst "+(toast.type==="success"?"ts":"te")}>{toast.msg}</div>}
+    {/* MAGIC-LINK generated modal (demo: copy the link; production emails it) */}
+    {magicLink&&<div style={{position:"fixed",inset:0,zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.5)",padding:16}} onClick={()=>setMagicLink(null)}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:18,padding:26,width:"100%",maxWidth:520}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><h3 style={{fontWeight:800,fontSize:18,color:"var(--navy)"}}>🔗 Account invite ready</h3><button onClick={()=>setMagicLink(null)} style={{background:"var(--g1)",border:"none",borderRadius:8,padding:8,cursor:"pointer"}}><X n="x" s={18}/></button></div>
+        <p style={{fontSize:13,color:"var(--g5)",marginBottom:12}}>One-time link for <strong>{magicLink.name}</strong> ({magicLink.email}). Share it so they set their own password. It becomes invalid after one use.</p>
+        <div style={{display:"flex",gap:8}}>
+          <input readOnly value={magicLink.url} onClick={e=>e.target.select()} className="inf" style={{flex:1,fontSize:12,fontFamily:"var(--fm)"}}/>
+          <button onClick={()=>{try{navigator.clipboard.writeText(magicLink.url)}catch(e){}t("Link copied","success")}} className="btn bp bsm">Copy</button>
+        </div>
+        <p style={{fontSize:11,color:"var(--g5)",marginTop:10}}>In production this link is emailed to the client automatically. Sales/Admin never set the client's password — only the client does, via this link.</p>
+      </div>
+    </div>}
 
     {/* NAV */}
     <nav style={{position:"sticky",top:0,zIndex:100,background:"rgba(10,22,40,.97)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
@@ -4017,9 +4082,10 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
       {view==="register"&&<Re dr={doReg} sv={setView}/>}
       {view==="forgot"&&<Fo t={t} sv={setView}/>}
       {view==="book"&&<Bk fleet={fleet} ac={addCart} sv={setView} t={t} bookings={fleetBookings}/>}
-      {view==="admin"&&user?.role==="admin"&&<Ad fleet={fleet} sf={setFleet} spaces={spaces} setSpaces={setSpaces} contacts={contacts} setContacts={setContacts} orders={orders} setOrders={setOrders} t={t} sv={setView} messages={messages} setMessages={setMessages} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} logout={logout} alarmEnabled={alarmEnabled} setAlarmEnabled={setAlarmEnabled} alarmActive={alarmActive} setAlarmActive={setAlarmActive} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars} carts={carts} setCarts={setCarts} contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} creditLines={creditLines} setCreditLines={setCreditLines} approveOrder={approveOrder} rejectOrder={rejectOrder} company={company} setCompany={setCompany} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll} signaturesAll={signaturesAll} saveMySignature={saveMySignature} mySignature={mySignature} contractPolicy={contractPolicy} setContractPolicy={setContractPolicy} signContractAsBtop={signContractAsBtop} sendAgreementNow={sendAgreementNow} commissionPolicy={commissionPolicy} setCommissionPolicy={setCommissionPolicy} authUsers={users}/>}
+      {view==="admin"&&user?.role==="admin"&&<Ad fleet={fleet} sf={setFleet} spaces={spaces} setSpaces={setSpaces} contacts={contacts} setContacts={setContacts} orders={orders} setOrders={setOrders} t={t} sv={setView} messages={messages} setMessages={setMessages} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} logout={logout} alarmEnabled={alarmEnabled} setAlarmEnabled={setAlarmEnabled} alarmActive={alarmActive} setAlarmActive={setAlarmActive} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars} carts={carts} setCarts={setCarts} contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} creditLines={creditLines} setCreditLines={setCreditLines} approveOrder={approveOrder} rejectOrder={rejectOrder} company={company} setCompany={setCompany} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll} signaturesAll={signaturesAll} saveMySignature={saveMySignature} mySignature={mySignature} contractPolicy={contractPolicy} setContractPolicy={setContractPolicy} signContractAsBtop={signContractAsBtop} sendAgreementNow={sendAgreementNow} commissionPolicy={commissionPolicy} setCommissionPolicy={setCommissionPolicy} authUsers={users} sendMagicLink={sendMagicLink}/>}
       {view==="hqfield"&&(user?.role==="sede"||user?.role==="admin")&&<FieldHQ fleet={fleet} spaces={spaces} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} user={user} sv={setView} logout={logout}/>}
       {view==="sales"&&(user?.role==="sales"||user?.role==="admin")&&<SalesPanel user={user} sv={setView} logout={logout} t={t} contacts={contacts} setContacts={setContacts} fleet={fleet} orders={orders} fleetBookings={fleetBookings} scheduleSale={scheduleSale} commissionPolicy={commissionPolicy} sendMagicLink={sendMagicLink}/>}
+      {view==="invite"&&<InvitePage invite={invites.find(i=>i.token===inviteToken)} onAccept={(pw)=>{if(acceptInvite(inviteToken,pw))setView("client")}} sv={setView}/>}
       {view==="checkout"&&user&&<CheckoutPage cart={cart} rmCart={rmCart} cTotal={cTotal} user={user} confirm={confirmOrder} cancel={()=>setView("home")} sv={setView} company={company} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} creditUsed={orders.filter(o=>(o.payMethod==="credit"||o.payMethod==="invoice")&&o.ue===user.email&&o.status!=="Cancelled"&&!o.settlementPaid).reduce((s,o)=>s+(o.tp||0),0)} savedPays={savedPays} mySignature={mySignature} saveMySignature={saveMySignature}/>}
       {view==="client"&&user?.role==="client"&&<Cl orders={orders.filter(o=>o.ue===user.email)} sv={setView} user={user} contacts={contacts} setContacts={setContacts} logout={logout} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} orders_all={orders} savedPays={savedPays} setSavedPays={setSavedPays} t={t} clientDocs={clientDocs} addClientDoc={addClientDoc} removeClientDoc={removeClientDoc} depositReturnPref={depositReturnPref} setDepositReturnPref={setDepositReturnPref} mySignature={mySignature} saveMySignature={saveMySignature}/>}
     </main>
@@ -5084,7 +5150,7 @@ function Fo({t,sv}){const [em,sem]=useState("");const [sent,ss]=useState(false);
 }
 
 /* ═══════ ADMIN ═══════ */
-function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,setMessages,deliveries,setDeliveries,bookings,setBookings,orders,setOrders,logout,alarmEnabled,setAlarmEnabled,alarmActive,setAlarmActive,emailTemplate,setEmailTemplate,emailLog,sendConfirmationEmail,renderEmailVars,carts,setCarts,contracts,setContracts,contractTpl,setContractTpl,creditLines,setCreditLines,approveOrder,rejectOrder,company,setCompany,clientDocsAll,depositReturnAll,signaturesAll,saveMySignature,mySignature,contractPolicy,setContractPolicy,signContractAsBtop,sendAgreementNow,commissionPolicy,setCommissionPolicy,authUsers}){
+function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,setMessages,deliveries,setDeliveries,bookings,setBookings,orders,setOrders,logout,alarmEnabled,setAlarmEnabled,alarmActive,setAlarmActive,emailTemplate,setEmailTemplate,emailLog,sendConfirmationEmail,renderEmailVars,carts,setCarts,contracts,setContracts,contractTpl,setContractTpl,creditLines,setCreditLines,approveOrder,rejectOrder,company,setCompany,clientDocsAll,depositReturnAll,signaturesAll,saveMySignature,mySignature,contractPolicy,setContractPolicy,signContractAsBtop,sendAgreementNow,commissionPolicy,setCommissionPolicy,authUsers,sendMagicLink}){
   const [section,setSection]=useState("dash");
   /* Clear alarm when admin opens a section where the new order is visible */
   useEffect(()=>{
@@ -5201,7 +5267,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
           {section==="bookings"&&<BookingsMod/>}
           {section==="reservations"&&<ReservationsMod orders={orders} setOrders={setOrders} fleetBookings={bookings} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars}/>}
           {section==="settlement"&&<SettlementMod orders={orders} setOrders={setOrders} deliveries={deliveries} fleet={fleet}/>}
-          {section==="contacts"&&<ContactsMod contacts={contacts} setContacts={setContacts} orders={orders} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll}/>}
+          {section==="contacts"&&<ContactsMod contacts={contacts} setContacts={setContacts} orders={orders} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll} sendMagicLink={sendMagicLink}/>}
           {section==="carts"&&<CartsMod carts={carts} setCarts={setCarts} contacts={contacts}/>}
           {section==="orderspay"&&<OrdersPayMod orders={orders} setOrders={setOrders} approveOrder={approveOrder} rejectOrder={rejectOrder}/>}
           {section==="credit"&&<CreditMod creditLines={creditLines} setCreditLines={setCreditLines} orders={orders} contacts={contacts}/>}
