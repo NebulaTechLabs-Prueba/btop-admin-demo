@@ -22,6 +22,8 @@ const USERS_INIT = [
   { email:"admin@btop.com", pw:"admin123", role:"admin", name:"Admin BTOP", phone:"+1 469 690 712" },
   { email:"cliente@test.com", pw:"test123", role:"client", name:"Test Client", phone:"(469) 555-0150" },
   { email:"sede@btop.com", pw:"sede123", role:"sede", name:"Headquarters Agent", phone:"(469) 555-0199" },
+  { email:"ventas@btop.com", pw:"ventas123", role:"sales", name:"Ana Torres", phone:"(469) 555-0300" },
+  { email:"carlos@btop.com", pw:"ventas123", role:"sales", name:"Carlos Lopez", phone:"(469) 555-0301" },
 ];
 
 
@@ -128,6 +130,7 @@ const ADM_NAV=[
   {id:"settlement",label:"Final Settlement",icon:DollarSign,group:"Billing"},
   {id:"credit",label:"Credit & Overdue",icon:DollarSign,group:"Billing"},
   {id:"contracts",label:"Contracts",icon:FileText,group:"Billing"},
+  {id:"commissions",label:"Commissions",icon:DollarSign,group:"Sales"},
   {id:"pay",label:"Payments",icon:CreditCard,group:"Billing"},
   {id:"invoices",label:"Invoices",icon:FileText,group:"Billing"},
   {id:"users",label:"Users & Roles",icon:UserCog,group:"Operations"},
@@ -3421,6 +3424,158 @@ function ContractsMod({contracts,setContracts,contractTpl,setContractTpl,signatu
   </div>;
 }
 
+/* ─── SALES COMMISSIONS ─── Commission is taken from the company margin on a validated sale (never added to the client's price) ─── */
+const EARNED_STATUSES=["Confirmed","Active","Delivered","Completed","Returned"];
+const isEarned=(o)=>EARNED_STATUSES.includes(o.status);
+const commissionAmount=(o,pol)=>{if(!o||!o.salesRep||o.status==="Cancelled")return 0;const base=o.tp||0;return (pol&&pol.mode==="fixed")?(Number(pol.value)||0):base*((Number(pol&&pol.value)||0)/100)};
+
+/* ═══ SALES PANEL (role: sales) — schedule reservations for contacts and track own commissions ═══ */
+function SalesPanel({user,sv,logout,t,contacts=[],setContacts,fleet=[],orders=[],fleetBookings=[],scheduleSale,commissionPolicy,sendMagicLink}){
+  const [tab,setTab]=useState("schedule");
+  const [pickContact,setPickContact]=useState("");
+  const [nc,setNc]=useState({name:"",email:"",phone:"",company:""});
+  const [addingC,setAddingC]=useState(false);
+  const [unitId,setUnitId]=useState("");
+  const [sd,setSd]=useState("");const [ed,setEd]=useState("");
+  const avail=fleet.filter(v=>v.status==="available"||v.status==="rented");
+  const unit=fleet.find(v=>v.id===unitId);
+  const days=(sd&&ed)?Math.max(1,Math.round((new Date(ed)-new Date(sd))/86400000)):0;
+  const rent=unit&&days?price(unit,days):0;const deposit=unit&&days?dep(unit,days):0;
+  const contact=contacts.find(c=>c.email===pickContact);
+  const myOrders=orders.filter(o=>o.salesRep===user.email);
+  const earned=myOrders.filter(isEarned);
+  const myAccrued=earned.reduce((s,o)=>s+commissionAmount(o,commissionPolicy),0);
+  const myPaid=earned.filter(o=>o.commissionPaid).reduce((s,o)=>s+commissionAmount(o,commissionPolicy),0);
+  const projected=myOrders.filter(o=>o.status==="Pending").reduce((s,o)=>s+commissionAmount(o,commissionPolicy),0);
+  const polLabel=commissionPolicy?.mode==="fixed"?`${$f(commissionPolicy.value)} per sale`:`${commissionPolicy?.value||0}% of sale`;
+  const createContact=()=>{if(!nc.name||!nc.email)return;const c={...nc,id:nid(),city:"",idDoc:"",registered:new Date().toISOString().split("T")[0],lastOrder:"",totalSpent:0,orders:0,hasAccount:false,createdBy:user.email};setContacts(p=>[c,...p]);setPickContact(c.email);setNc({name:"",email:"",phone:"",company:""});setAddingC(false);t&&t("Contact created","success")};
+  const doSchedule=()=>{
+    if(!contact){t&&t("Select or create a contact first","error");return}
+    if(!unit||!days){t&&t("Pick a vehicle and dates","error");return}
+    scheduleSale({contact,unit,sd,ed,days,rent,deposit});
+    setUnitId("");setSd("");setEd("");setPickContact("");
+    setTab("commissions");
+  };
+  return <div style={{position:"fixed",inset:0,zIndex:100,background:"#fafaf9",overflow:"auto"}}>
+    <div style={{background:"#0A1628",color:"#fff",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:10}}>
+      <div style={{display:"flex",alignItems:"center",gap:12}}><div style={{background:"#1e3a5f",borderRadius:10,padding:"8px 12px",fontWeight:800}}>BTOP</div><div><div style={{fontWeight:700}}>Sales Panel</div><div style={{fontSize:12,color:"rgba(255,255,255,.6)"}}>{user.name} · commission {polLabel}</div></div></div>
+      <div style={{display:"flex",gap:8}}><button onClick={()=>sv("home")} className="btn bsm" style={{background:"rgba(255,255,255,.1)",color:"#fff",border:"1px solid rgba(255,255,255,.2)"}}>Website</button><button onClick={logout} className="btn bsm" style={{background:"rgba(255,255,255,.1)",color:"#fff",border:"1px solid rgba(255,255,255,.2)"}}>Sign out</button></div>
+    </div>
+    <div style={{maxWidth:1000,margin:"0 auto",padding:24}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12,marginBottom:20}}>
+        <div className="cd" style={{padding:16}}><div style={{fontSize:11,color:"var(--g5)",textTransform:"uppercase",fontWeight:600}}>Sales validated</div><div style={{fontSize:24,fontWeight:800,color:"var(--navy)"}}>{earned.length}</div></div>
+        <div className="cd" style={{padding:16}}><div style={{fontSize:11,color:"var(--g5)",textTransform:"uppercase",fontWeight:600}}>Accrued commission</div><div style={{fontSize:24,fontWeight:800,color:"var(--green)"}}>{$f(myAccrued)}</div></div>
+        <div className="cd" style={{padding:16}}><div style={{fontSize:11,color:"var(--g5)",textTransform:"uppercase",fontWeight:600}}>Paid</div><div style={{fontSize:24,fontWeight:800,color:"var(--navy)"}}>{$f(myPaid)}</div></div>
+        <div className="cd" style={{padding:16}}><div style={{fontSize:11,color:"var(--g5)",textTransform:"uppercase",fontWeight:600}}>Pending payment</div><div style={{fontSize:24,fontWeight:800,color:"var(--orange)"}}>{$f(myAccrued-myPaid)}</div></div>
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:16}}>{[["schedule","New reservation"],["commissions","My commissions"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="btn bsm" style={{background:tab===k?"var(--b6)":"#fff",color:tab===k?"#fff":"var(--g7)",border:tab===k?"none":"1px solid var(--g3)"}}>{l}</button>)}</div>
+
+      {tab==="schedule"&&<div className="cd" style={{padding:24}}>
+        <h3 style={{fontWeight:800,fontSize:18,color:"var(--navy)",marginBottom:16}}>Schedule a reservation for a contact</h3>
+        {/* CONTACT */}
+        <div style={{marginBottom:16}}>
+          <label className="ig"><span style={{fontWeight:600,fontSize:12,color:"var(--g7)"}}>Contact</span></label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginTop:6}}>
+            <select className="inf" style={{maxWidth:340}} value={pickContact} onChange={e=>setPickContact(e.target.value)}><option value="">Select a contact…</option>{contacts.map(c=><option key={c.id} value={c.email}>{c.name} — {c.email}{c.hasAccount?"":" (no account)"}</option>)}</select>
+            <button onClick={()=>setAddingC(!addingC)} className="btn bsm bs">＋ New contact</button>
+          </div>
+          {contact&&!contact.hasAccount&&<div style={{marginTop:10,padding:"10px 12px",background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:10,fontSize:12,color:"#92400E"}}>⚠ This contact has <strong>no BTOP account</strong>. They are <strong>not eligible for credit</strong>. To use credit they must create an account with the required data. {sendMagicLink&&<button onClick={()=>sendMagicLink(contact)} style={{marginLeft:6,background:"none",border:"none",color:"var(--b6)",fontWeight:700,cursor:"pointer",textDecoration:"underline"}}>Send account invite (magic link)</button>}</div>}
+          {addingC&&<div style={{marginTop:10,padding:14,background:"var(--g0)",borderRadius:12,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div className="ig"><label>Full name *</label><input className="inf" value={nc.name} onChange={e=>setNc({...nc,name:e.target.value})}/></div>
+            <div className="ig"><label>Email *</label><input className="inf" value={nc.email} onChange={e=>setNc({...nc,email:e.target.value})}/></div>
+            <div className="ig"><label>Phone</label><input className="inf" value={nc.phone} onChange={e=>setNc({...nc,phone:e.target.value})}/></div>
+            <div className="ig"><label>Company</label><input className="inf" value={nc.company} onChange={e=>setNc({...nc,company:e.target.value})}/></div>
+            <div style={{gridColumn:"1/3",fontSize:11,color:"var(--g5)"}}>Sales can create contacts, but not accounts. The client sets their own password via a magic link.</div>
+            <button onClick={createContact} className="btn bp bsm" style={{gridColumn:"1/3",justifyContent:"center"}}>Create contact</button>
+          </div>}
+        </div>
+        {/* UNIT + DATES */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+          <div className="ig"><label>Vehicle / equipment</label><select className="inf" value={unitId} onChange={e=>setUnitId(e.target.value)}><option value="">Select…</option>{avail.map(v=><option key={v.id} value={v.id}>{v.name} · {v.plate||v.id}</option>)}</select></div>
+          <div className="ig"><label>Start</label><input className="inf" type="date" value={sd} onChange={e=>setSd(e.target.value)}/></div>
+          <div className="ig"><label>End</label><input className="inf" type="date" value={ed} onChange={e=>setEd(e.target.value)}/></div>
+        </div>
+        {unit&&days>0&&<div style={{padding:16,background:"var(--g0)",borderRadius:12,marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:14,marginBottom:4}}><span style={{color:"var(--g5)"}}>{days} day(s) · {unit.name}</span><span style={{fontWeight:700}}>Rental {$(rent)}</span></div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:14}}><span style={{color:"var(--g5)"}}>Deposit</span><span style={{fontWeight:700}}>{$(deposit)}</span></div>
+          <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid var(--g2)",fontSize:12,color:"var(--b7)"}}>Your commission if validated: <strong>{$f(commissionPolicy?.mode==="fixed"?(Number(commissionPolicy.value)||0):rent*((Number(commissionPolicy?.value)||0)/100))}</strong> (from company margin, not charged to the client)</div>
+        </div>}
+        <button onClick={doSchedule} className="btn bp blg" style={{width:"100%",justifyContent:"center"}}><X n="cal" s={18}/>Schedule reservation (awaiting admin validation)</button>
+      </div>}
+
+      {tab==="commissions"&&<div className="cd" style={{padding:0,overflow:"hidden"}}>
+        <div style={{padding:16,borderBottom:"1px solid var(--g2)",fontWeight:700,color:"var(--navy)"}}>My reservations & commissions ({myOrders.length}) {projected>0&&<span style={{fontSize:12,fontWeight:500,color:"var(--g5)"}}>· projected pending validation: {$f(projected)}</span>}</div>
+        {myOrders.length===0?<div style={{padding:40,textAlign:"center",color:"var(--g5)"}}>No reservations yet. Schedule one to start earning commission.</div>
+        :<div>{myOrders.slice().reverse().map(o=>{const comm=commissionAmount(o,commissionPolicy);const st=o.status==="Pending"?"Awaiting validation":o.status==="Cancelled"?"Rejected":o.commissionPaid?"Commission paid":"Earned (unpaid)";return <div key={o.oid} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"12px 16px",borderBottom:"1px solid var(--g1)"}}>
+          <div><div style={{fontWeight:700,fontSize:13,fontFamily:"var(--fm)"}}>{o.oid}</div><div style={{fontSize:12,color:"var(--g5)"}}>{o.un} · {o.un2} · {$(o.tp)}</div></div>
+          <div style={{textAlign:"right"}}><div style={{fontWeight:800,color:isEarned(o)?"var(--green)":"var(--g5)"}}>{$f(comm)}</div><div style={{fontSize:11,color:o.status==="Cancelled"?"var(--red)":o.status==="Pending"?"var(--orange)":o.commissionPaid?"var(--green)":"var(--b6)"}}>{st}</div></div>
+        </div>})}</div>}
+      </div>}
+    </div>
+  </div>;
+}
+
+/* ═══ ADMIN · SALES COMMISSIONS ═══ */
+function CommissionsMod({orders=[],users=[],commissionPolicy,setCommissionPolicy,setOrders}){
+  const [from,setFrom]=useState("");const [to,setTo]=useState("");
+  const nameFor=(email)=>users.find(u=>u.email===email)?.name||email;
+  const withRep=orders.filter(o=>o.salesRep&&o.status!=="Cancelled");
+  const reps=[...new Set(withRep.map(o=>o.salesRep))];
+  const inRange=(o)=>{const d=(o.approvedAt||o.od||"").slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false;return true};
+  const rows=reps.map(email=>{
+    const all=withRep.filter(o=>o.salesRep===email);
+    const earnedO=all.filter(isEarned);
+    const accrued=earnedO.reduce((s,o)=>s+commissionAmount(o,commissionPolicy),0);
+    const paid=earnedO.filter(o=>o.commissionPaid).reduce((s,o)=>s+commissionAmount(o,commissionPolicy),0);
+    const rangeComm=earnedO.filter(inRange).reduce((s,o)=>s+commissionAmount(o,commissionPolicy),0);
+    return {email,name:nameFor(email),total:all.length,earned:earnedO.length,accrued,paid,pending:accrued-paid,rangeComm};
+  }).sort((a,b)=>b.accrued-a.accrued);
+  const teamSales=withRep.filter(isEarned).length;
+  const teamAccrued=rows.reduce((s,r)=>s+r.accrued,0);
+  const teamPaid=rows.reduce((s,r)=>s+r.paid,0);
+  const teamRange=rows.reduce((s,r)=>s+r.rangeComm,0);
+  const markRepPaid=(email,paid)=>setOrders(p=>p.map(o=>(o.salesRep===email&&isEarned(o))?{...o,commissionPaid:paid}:o));
+  return <div>
+    <p className="text-stone-600 text-sm mb-5">Sales commissions are paid manually (outside the system). This view only informs you <strong>who, why, and how much</strong> — with paid vs. pending amounts. Commission comes from the company margin, never added to the client's price.</p>
+    {/* POLICY */}
+    <SC title="Commission policy (applies to all Sales)">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="inline-flex bg-stone-100 rounded-full p-1">{[["percentage","Percentage"],["fixed","Fixed amount"]].map(([v,l])=><button key={v} onClick={()=>setCommissionPolicy({...commissionPolicy,mode:v})} className={`px-4 py-1.5 rounded-full text-xs font-semibold ${commissionPolicy.mode===v?"bg-blue-900 text-white":"text-stone-600"}`}>{l}</button>)}</div>
+        <div className="ig"><label className="text-xs font-medium text-stone-600">{commissionPolicy.mode==="fixed"?"Amount per sale ($)":"Percentage of sale (%)"}</label><input type="number" value={commissionPolicy.value} onChange={e=>setCommissionPolicy({...commissionPolicy,value:e.target.value})} className="w-40 px-3 py-2 border border-stone-200 rounded-lg text-sm"/></div>
+        <div className="text-xs text-stone-500 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2">On a $1,000 sale → commission <strong>{$f(commissionPolicy.mode==="fixed"?(Number(commissionPolicy.value)||0):1000*((Number(commissionPolicy.value)||0)/100))}</strong></div>
+      </div>
+    </SC>
+    {/* KPIs */}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-6">
+      <St label="Team sales (validated)" value={teamSales} icon={Check} trend="up"/>
+      <St label="Commission accrued" value={$f(teamAccrued)} icon={DollarSign}/>
+      <St label="Paid" value={$f(teamPaid)} icon={Check} trend="up"/>
+      <St label="Pending payment" value={$f(teamAccrued-teamPaid)} icon={AlertTriangle} trend="down"/>
+    </div>
+    {/* TIMEFRAME */}
+    <div className="bg-white border border-stone-200 rounded-2xl p-4 mb-4 flex flex-wrap gap-3 items-center">
+      <span className="text-sm font-semibold text-stone-700">Commission in timeframe:</span>
+      <label className="text-xs text-stone-500">From <input type="date" value={from} onChange={e=>setFrom(e.target.value)} className="ml-1 px-2 py-1.5 border border-stone-200 rounded-lg text-sm"/></label>
+      <label className="text-xs text-stone-500">To <input type="date" value={to} onChange={e=>setTo(e.target.value)} className="ml-1 px-2 py-1.5 border border-stone-200 rounded-lg text-sm"/></label>
+      {(from||to)&&<button onClick={()=>{setFrom("");setTo("")}} className="px-3 py-1.5 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600">✕ Clear</button>}
+      <span className="ml-auto text-sm">Total in range: <strong>{$f(teamRange)}</strong></span>
+    </div>
+    {/* PER REP */}
+    <SC title={`Sales team (${rows.length})`} padded={false}>
+      {rows.length===0?<div className="text-center py-14 text-stone-400 text-sm">No sales-attributed reservations yet.</div>
+      :<DT headers={["Salesperson","Sales (validated)","Accrued","Paid","Pending","In range",""]} rows={rows.map(r=>[
+        <div><div className="font-semibold text-sm">{r.name}</div><div className="text-[10px] text-stone-400">{r.email} · {r.total} total</div></div>,
+        <Pill tone="blue">{r.earned}</Pill>,
+        <span className="font-semibold">{$f(r.accrued)}</span>,
+        <span className="text-emerald-700 font-medium">{$f(r.paid)}</span>,
+        <span className={`font-semibold ${r.pending>0?"text-amber-700":"text-stone-400"}`}>{$f(r.pending)}</span>,
+        <span className="text-xs text-stone-500">{$f(r.rangeComm)}</span>,
+        r.pending>0?<button onClick={()=>markRepPaid(r.email,true)} className="text-xs font-semibold text-blue-700 hover:underline">Mark paid</button>:<button onClick={()=>markRepPaid(r.email,false)} className="text-xs font-semibold text-stone-400 hover:underline">Reset</button>,
+      ])}/>}
+    </SC>
+  </div>;
+}
+
 /* ═══════════════ APP ═══════════════ */
 export default function App(){
   const [view,setView]=useState("home");
@@ -3520,6 +3675,8 @@ export default function App(){
   const [contractTpl,setContractTpl]=usePersistentState("btop_contractTpl",DEFAULT_CONTRACT_TPL);
   /* Admin-configurable contract sending strictness: "both" | "client" | "none" */
   const [contractPolicy,setContractPolicy]=usePersistentState("btop_contractPolicy",{sendWhen:"both"});
+  /* Admin-configurable sales commission (general for all Sales): percentage or fixed, taken from company margin */
+  const [commissionPolicy,setCommissionPolicy]=usePersistentState("btop_commissionPolicy",{mode:"percentage",value:5});
   /* Company profile — single source of truth for contact details (editable in Settings) */
   const [company,setCompany]=usePersistentState("btop_company",{name:"BTOP Rentals",address:"9807 Mines Rd #9, Laredo TX 78045",phone:"+1 469 690 712",email:"btoprentals@gmail.com",hours:"Mon–Fri 7AM–6PM · Sat 8AM–2PM"});
   /* Saved payment methods per client email (shared so checkout can prefill from the client's dashboard) */
@@ -3545,11 +3702,16 @@ export default function App(){
     {id:"CL-DEMO1",clientName:"Roberto Perez",email:"roberto@email.com",limit:15000,terms:30,grantedAt:"2026-05-01T00:00:00.000Z",active:true},
     {id:"CL-DEMO2",clientName:"ABC Transport",email:"ops@abctransport.com",limit:50000,terms:45,grantedAt:"2026-04-15T00:00:00.000Z",active:true},
   ]);
-  const [orders,setOrders]=usePersistentState("btop_orders_v2",[
+  const [orders,setOrders]=usePersistentState("btop_orders_v3",[
     /* Seed orders matching the 3 seed deliveries so Reservations and Headquarters show the same events */
     /* Demo CREDIT order (overdue) — relates to credit line CL-DEMO1 (Roberto Perez) to populate Credit & Overdue */
     {oid:"ORD-CREDIT1",invNum:"INV-0096",status:"Confirmed",payState:"approved",phase:"reservation",od:"2026-04-01",approvedAt:"2026-04-01T00:00:00.000Z",un:"Roberto Perez",ue:"roberto@email.com",un2:"Ottawa Yard Spotter",uid:"v1",plate:"TX-990",ut:"Monthly yard spotter",sd:"2026-04-05",ed:"2026-05-05",days:30,qty:1,tp:3800,dp:500,reservationPaid:500,mr:0,miles:0,payMethod:"invoice",ui:"🚛",settlementPaid:false,settlementTotal:0},
     {oid:"ORD-ABC123",invNum:"INV-0097",status:"Confirmed",phase:"reservation",od:"2026-04-05",un:"Carlos Mendez",ue:"carlos@email.com",un2:"Freightliner Cascadia",uid:"v2",plate:"TX-16000",ut:"Regional hauling daycab.",sd:"2026-04-10",ed:"2026-04-24",days:14,qty:1,tp:2310,dp:500,reservationPaid:500,mr:0.15,miles:0,payMethod:"Stripe",ui:"🚚",settlementPaid:false,settlementTotal:0},
+    /* Sales-attributed demo orders (salesRep) to populate the Commissions module */
+    {oid:"ORD-SALE01",invNum:"INV-0090",status:"Confirmed",payState:"approved",phase:"reservation",od:"2026-05-12",approvedAt:"2026-05-12T00:00:00.000Z",un:"Mike Johnson",ue:"mike@email.com",un2:"Mitsubishi Forklift",uid:"v4",plate:"TX-1116",ut:"Forklift 5,000lb",sd:"2026-05-15",ed:"2026-05-20",days:5,qty:1,tp:1100,dp:300,reservationPaid:300,mr:0,miles:0,payMethod:"cash",ui:"🏗️",settlementPaid:false,settlementTotal:0,salesRep:"ventas@btop.com",bySales:true,commissionPaid:true},
+    {oid:"ORD-SALE02",invNum:"INV-0091",status:"Confirmed",payState:"approved",phase:"reservation",od:"2026-05-20",approvedAt:"2026-05-20T00:00:00.000Z",un:"Sarah Davis",ue:"sarah@email.com",un2:"Dodge Ram Pick Up",uid:"v5",plate:"TX-1317",ut:"Pickup 8ft bed",sd:"2026-05-22",ed:"2026-05-29",days:7,qty:1,tp:350,dp:300,reservationPaid:300,mr:0,miles:0,payMethod:"cash",ui:"🛻",settlementPaid:false,settlementTotal:0,salesRep:"ventas@btop.com",bySales:true},
+    {oid:"ORD-SALE03",invNum:"INV-0092",status:"Confirmed",payState:"approved",phase:"reservation",od:"2026-06-01",approvedAt:"2026-06-01T00:00:00.000Z",un:"ABC Transport",ue:"ops@abctransport.com",un2:"Wabash Van Trailer",uid:"v3",plate:"TX-821281",ut:"40ft trailer",sd:"2026-06-03",ed:"2026-06-17",days:14,qty:1,tp:850,dp:300,reservationPaid:300,mr:0,miles:0,payMethod:"cash",ui:"📦",settlementPaid:false,settlementTotal:0,salesRep:"carlos@btop.com",bySales:true},
+    {oid:"ORD-SALE04",invNum:"INV-0093",status:"Pending",payState:"awaiting_validation",phase:"reservation",od:"2026-06-25",expiresAt:"2026-07-25T00:00:00.000Z",un:"Maria Gonzalez",ue:"maria.g@email.com",un2:"GMC 3500 Box Truck",uid:"v6",plate:"TX-1212",ut:"16ft box truck",sd:"2026-06-28",ed:"2026-07-05",days:7,qty:1,tp:300,dp:150,reservationPaid:150,mr:0,miles:0,payMethod:"cash",ui:"🚐",settlementPaid:false,settlementTotal:0,salesRep:"carlos@btop.com",bySales:true},
     {oid:"ORD-DEF456",invNum:"INV-0098",status:"Confirmed",phase:"reservation",od:"2026-04-08",un:"Laura Vega",ue:"laura@email.com",un2:"GMC 3500 Box Truck",uid:"v6",plate:"TX-1212",ut:"16ft box truck.",sd:"2026-04-12",ed:"2026-04-19",days:7,qty:1,tp:300,dp:150,reservationPaid:150,mr:0.15,miles:0,payMethod:"Zelle",ui:"🚐",settlementPaid:false,settlementTotal:0},
     {oid:"ORD-OLD789",invNum:"INV-0099",status:"Active",phase:"reservation",od:"2026-03-28",un:"John Smith",ue:"john@email.com",un2:"Dodge Ram Pick Up",uid:"v5",plate:"TX-1317",ut:"Pickup 8ft bed.",sd:"2026-04-01",ed:"2026-04-08",days:7,qty:1,tp:350,dp:300,reservationPaid:300,mr:0,miles:0,payMethod:"Cash",ui:"🛻",settlementPaid:false,settlementTotal:0},
   ]);
@@ -3663,6 +3825,26 @@ export default function App(){
     const o=orders.find(x=>x.oid===oid);const gid=o?(o.gid||o.oid):oid;
     setOrders(p=>p.map(x=>(x.gid||x.oid)===gid?{...x,status:"Cancelled",payState:"rejected"}:x));
     t("Payment rejected. Order cancelled.","error");
+  };
+  /* A Sales employee schedules a reservation for a contact → Pending order tagged with salesRep (commission accrues on admin validation) */
+  const scheduleSale=({contact,unit,sd,ed,days,rent,deposit})=>{
+    const oid="ORD-"+Math.random().toString(36).substr(2,8).toUpperCase();
+    const gid="GRP-"+Math.random().toString(36).substr(2,8).toUpperCase();
+    const today=new Date().toISOString().split("T")[0];
+    const rec={oid,gid,invNum:"INV-"+String(orders.length+100).padStart(4,"0"),status:"Pending",payState:"awaiting_validation",phase:"reservation",od:today,
+      ue:contact.email,un:contact.name,un2:unit.name,uid:unit.id,plate:unit.plate||"",ut:unit.type||unit.cat||"",
+      sd:dateToStr(sd),ed:dateToStr(ed),days,qty:1,tp:rent||0,dp:deposit||0,reservationPaid:deposit||0,mr:unit.rateMile||0,miles:0,
+      payMethod:"cash",ui:unit.img||"🚛",settlementPaid:false,settlementTotal:0,
+      salesRep:user.email,bySales:true,expiresAt:new Date(Date.now()+PENDING_TTL_DAYS*86400000).toISOString()};
+    setOrders(p=>[...p,rec]);
+    setDeliveries(p=>[{id:"d"+Date.now()+"_"+Math.random().toString(36).slice(2,6),oid,invNum:rec.invNum,client:contact.name,vehicle:unit.name,vid:unit.id,plate:unit.plate||"",start:rec.sd,end:rec.ed,status:"pending",milesOut:"",fuelOut:"",conditionOut:"",notesOut:"",milesIn:"",fuelIn:"",conditionIn:"",notesIn:"",damaged:false,damageDesc:"",deliveredBy:"",returnedBy:""},...p]);
+    if(alarmEnabled)setAlarmActive(true);
+    t(`Reservation ${oid} scheduled for ${contact.name} — awaiting admin validation`,"success");
+  };
+  /* Magic-link account invite (Batch A stub: validates fields + notifies; full set-password flow lands in Batch B) */
+  const sendMagicLink=(contact)=>{
+    if(!contact?.name||!contact?.email||!contact?.phone){t("Complete name, email and phone before sending the account invite","error");return}
+    t(`Account invite (magic link) generated for ${contact.email}`,"success");
   };
 
   const goCheckout=()=>{
@@ -3816,7 +3998,7 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
             <X n="cart" s={20}/>{cart.length>0&&<span style={{position:"absolute",top:-4,right:-4,background:"var(--red)",color:"#fff",borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>{cart.length}</span>}
           </button>
           {user?<div style={{display:"flex",alignItems:"center",gap:8}}>
-            <button onClick={()=>setView(user.role==="admin"?"admin":user.role==="sede"?"hqfield":"client")} className="btn bsm" style={{background:"rgba(37,99,235,.2)",color:"var(--b3)",border:"1px solid rgba(37,99,235,.3)"}}><X n={user.role==="admin"?"gear":user.role==="sede"?"map":"user"} s={16}/> {user.role==="sede"?"Headquarters Panel":user.name.split(" ")[0]}</button>
+            <button onClick={()=>setView(user.role==="admin"?"admin":user.role==="sede"?"hqfield":user.role==="sales"?"sales":"client")} className="btn bsm" style={{background:"rgba(37,99,235,.2)",color:"var(--b3)",border:"1px solid rgba(37,99,235,.3)"}}><X n={user.role==="admin"?"gear":user.role==="sede"?"map":user.role==="sales"?"dol":"user"} s={16}/> {user.role==="sede"?"Headquarters Panel":user.role==="sales"?"Sales Panel":user.name.split(" ")[0]}</button>
             <button onClick={logout} style={{background:"rgba(255,255,255,.08)",border:"none",borderRadius:8,padding:8,cursor:"pointer",color:"rgba(255,255,255,.4)"}}><X n="out" s={18}/></button>
           </div>:<button onClick={()=>setView("login")} className="btn bsm bp">Sign In</button>}
         </div>
@@ -3835,8 +4017,9 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
       {view==="register"&&<Re dr={doReg} sv={setView}/>}
       {view==="forgot"&&<Fo t={t} sv={setView}/>}
       {view==="book"&&<Bk fleet={fleet} ac={addCart} sv={setView} t={t} bookings={fleetBookings}/>}
-      {view==="admin"&&user?.role==="admin"&&<Ad fleet={fleet} sf={setFleet} spaces={spaces} setSpaces={setSpaces} contacts={contacts} setContacts={setContacts} orders={orders} setOrders={setOrders} t={t} sv={setView} messages={messages} setMessages={setMessages} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} logout={logout} alarmEnabled={alarmEnabled} setAlarmEnabled={setAlarmEnabled} alarmActive={alarmActive} setAlarmActive={setAlarmActive} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars} carts={carts} setCarts={setCarts} contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} creditLines={creditLines} setCreditLines={setCreditLines} approveOrder={approveOrder} rejectOrder={rejectOrder} company={company} setCompany={setCompany} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll} signaturesAll={signaturesAll} saveMySignature={saveMySignature} mySignature={mySignature} contractPolicy={contractPolicy} setContractPolicy={setContractPolicy} signContractAsBtop={signContractAsBtop} sendAgreementNow={sendAgreementNow}/>}
+      {view==="admin"&&user?.role==="admin"&&<Ad fleet={fleet} sf={setFleet} spaces={spaces} setSpaces={setSpaces} contacts={contacts} setContacts={setContacts} orders={orders} setOrders={setOrders} t={t} sv={setView} messages={messages} setMessages={setMessages} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} logout={logout} alarmEnabled={alarmEnabled} setAlarmEnabled={setAlarmEnabled} alarmActive={alarmActive} setAlarmActive={setAlarmActive} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars} carts={carts} setCarts={setCarts} contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} creditLines={creditLines} setCreditLines={setCreditLines} approveOrder={approveOrder} rejectOrder={rejectOrder} company={company} setCompany={setCompany} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll} signaturesAll={signaturesAll} saveMySignature={saveMySignature} mySignature={mySignature} contractPolicy={contractPolicy} setContractPolicy={setContractPolicy} signContractAsBtop={signContractAsBtop} sendAgreementNow={sendAgreementNow} commissionPolicy={commissionPolicy} setCommissionPolicy={setCommissionPolicy} authUsers={users}/>}
       {view==="hqfield"&&(user?.role==="sede"||user?.role==="admin")&&<FieldHQ fleet={fleet} spaces={spaces} deliveries={deliveries} setDeliveries={setDeliveries} bookings={fleetBookings} setBookings={setFleetBookings} user={user} sv={setView} logout={logout}/>}
+      {view==="sales"&&(user?.role==="sales"||user?.role==="admin")&&<SalesPanel user={user} sv={setView} logout={logout} t={t} contacts={contacts} setContacts={setContacts} fleet={fleet} orders={orders} fleetBookings={fleetBookings} scheduleSale={scheduleSale} commissionPolicy={commissionPolicy} sendMagicLink={sendMagicLink}/>}
       {view==="checkout"&&user&&<CheckoutPage cart={cart} rmCart={rmCart} cTotal={cTotal} user={user} confirm={confirmOrder} cancel={()=>setView("home")} sv={setView} company={company} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} creditUsed={orders.filter(o=>(o.payMethod==="credit"||o.payMethod==="invoice")&&o.ue===user.email&&o.status!=="Cancelled"&&!o.settlementPaid).reduce((s,o)=>s+(o.tp||0),0)} savedPays={savedPays} mySignature={mySignature} saveMySignature={saveMySignature}/>}
       {view==="client"&&user?.role==="client"&&<Cl orders={orders.filter(o=>o.ue===user.email)} sv={setView} user={user} contacts={contacts} setContacts={setContacts} logout={logout} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} orders_all={orders} savedPays={savedPays} setSavedPays={setSavedPays} t={t} clientDocs={clientDocs} addClientDoc={addClientDoc} removeClientDoc={removeClientDoc} depositReturnPref={depositReturnPref} setDepositReturnPref={setDepositReturnPref} mySignature={mySignature} saveMySignature={saveMySignature}/>}
     </main>
@@ -4847,7 +5030,7 @@ function Lo({dl,sv}){const [em,sem]=useState("");const [pw,spw]=useState("");con
       <div style={{marginTop:20}}>
         <p style={{fontSize:11,color:"var(--g5)",textAlign:"center",marginBottom:8,textTransform:"uppercase",letterSpacing:".5px",fontWeight:600}}>Accesos demo — toca para rellenar</p>
         <div style={{display:"flex",gap:8}}>
-          {[["Admin","admin@btop.com","admin123"],["Client","cliente@test.com","test123"],["Branch","sede@btop.com","sede123"]].map(([l,e,p])=>
+          {[["Admin","admin@btop.com","admin123"],["Client","cliente@test.com","test123"],["Branch","sede@btop.com","sede123"],["Sales","ventas@btop.com","ventas123"]].map(([l,e,p])=>
             <button key={l} type="button" onClick={()=>{sem(e);spw(p)}} style={{flex:"1 1 0",minWidth:0,padding:"10px 8px",background:"var(--b0)",border:"1px solid var(--b1)",borderRadius:10,cursor:"pointer",textAlign:"center",transition:"all .15s"}} onMouseEnter={ev=>{ev.currentTarget.style.borderColor="var(--b5)";ev.currentTarget.style.background="#fff"}} onMouseLeave={ev=>{ev.currentTarget.style.borderColor="var(--b1)";ev.currentTarget.style.background="var(--b0)"}}>
               <div style={{fontWeight:700,fontSize:13,color:"var(--b7)"}}>{l}</div>
               <div style={{fontSize:10,color:"var(--g5)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e}</div>
@@ -4901,7 +5084,7 @@ function Fo({t,sv}){const [em,sem]=useState("");const [sent,ss]=useState(false);
 }
 
 /* ═══════ ADMIN ═══════ */
-function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,setMessages,deliveries,setDeliveries,bookings,setBookings,orders,setOrders,logout,alarmEnabled,setAlarmEnabled,alarmActive,setAlarmActive,emailTemplate,setEmailTemplate,emailLog,sendConfirmationEmail,renderEmailVars,carts,setCarts,contracts,setContracts,contractTpl,setContractTpl,creditLines,setCreditLines,approveOrder,rejectOrder,company,setCompany,clientDocsAll,depositReturnAll,signaturesAll,saveMySignature,mySignature,contractPolicy,setContractPolicy,signContractAsBtop,sendAgreementNow}){
+function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,setMessages,deliveries,setDeliveries,bookings,setBookings,orders,setOrders,logout,alarmEnabled,setAlarmEnabled,alarmActive,setAlarmActive,emailTemplate,setEmailTemplate,emailLog,sendConfirmationEmail,renderEmailVars,carts,setCarts,contracts,setContracts,contractTpl,setContractTpl,creditLines,setCreditLines,approveOrder,rejectOrder,company,setCompany,clientDocsAll,depositReturnAll,signaturesAll,saveMySignature,mySignature,contractPolicy,setContractPolicy,signContractAsBtop,sendAgreementNow,commissionPolicy,setCommissionPolicy,authUsers}){
   const [section,setSection]=useState("dash");
   /* Clear alarm when admin opens a section where the new order is visible */
   useEffect(()=>{
@@ -5022,6 +5205,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
           {section==="carts"&&<CartsMod carts={carts} setCarts={setCarts} contacts={contacts}/>}
           {section==="orderspay"&&<OrdersPayMod orders={orders} setOrders={setOrders} approveOrder={approveOrder} rejectOrder={rejectOrder}/>}
           {section==="credit"&&<CreditMod creditLines={creditLines} setCreditLines={setCreditLines} orders={orders} contacts={contacts}/>}
+          {section==="commissions"&&<CommissionsMod orders={orders} users={authUsers} commissionPolicy={commissionPolicy} setCommissionPolicy={setCommissionPolicy} setOrders={setOrders}/>}
           {section==="contracts"&&<ContractsMod contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} signaturesAll={signaturesAll} company={company} setCompany={setCompany} contractPolicy={contractPolicy} setContractPolicy={setContractPolicy} signContractAsBtop={signContractAsBtop} sendAgreementNow={sendAgreementNow}/>}
           {section==="posts"&&<PostsMod/>}
           {section==="messages"&&<MessagesMod messages={messages} setMessages={setMessages}/>}
