@@ -2203,7 +2203,7 @@ function InvoiceMod(){
                 <div><div className="text-xl font-bold" style={{color:pdfConfig.color}}>{pdfConfig.companyName}</div><div className="text-[11px] text-stone-500 mt-1">{pdfConfig.address}<br/>{pdfConfig.phone} · {pdfConfig.email}</div></div>
                 <div className="text-right"><div className="text-lg font-bold" style={{color:pdfConfig.color}}>INV-001</div><div className="text-[11px] text-stone-500">Date: 2026-04-14</div></div>
               </div>
-              <div className="bg-stone-50 rounded-lg p-3 mb-4 text-xs"><strong>Bill To:</strong> Carlos Mendez<br/><span className="text-stone-500">carlos@email.com</span></div>
+              <div className="bg-stone-50 rounded-lg p-3 mb-4 text-xs"><strong>Bill To:</strong> Client Name<br/><span className="text-stone-500">client@example.com</span></div>
               <table className="w-full text-xs mb-4"><thead><tr className="border-b border-stone-200"><th className="text-left py-2">Description</th><th className="text-right py-2">Amount</th></tr></thead><tbody><tr className="border-b border-stone-100"><td className="py-2">Truck rental – 14 days</td><td className="text-right py-2">$2,450</td></tr></tbody></table>
               <div className="text-right space-y-1"><div className="text-xs">Subtotal: $2,450</div><div className="text-xs">Tax (8.25%): $202.13</div><div className="font-bold text-base pt-1 border-t border-stone-200">Total: $2,652.13</div></div>
               <div className="text-center text-[10px] text-stone-400 mt-6">{pdfConfig.footer} · {pdfConfig.companyName}</div>
@@ -4197,14 +4197,8 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
 /* ═══════════ HOME ═══════════ */
 /* ═══ TESTIMONIALS CAROUSEL ═══ */
 function Testimonials(){
-  const items=[
-    {n:"Carlos M.",r:5,t:"Excellent fleet. Cascadia ran perfectly for 3 months.",c:"Mendez Trucking"},
-    {n:"Sarah D.",r:5,t:"Quick booking and fair pricing. Great box truck.",c:"Individual"},
-    {n:"Roberto P.",r:4,t:"Great yard spotter for warehouse ops. Saved us hours every day.",c:"Perez Transport"},
-    {n:"Gulf Coast",r:5,t:"Secure, well-maintained storage spaces. Best location in Laredo.",c:"Gulf Coast Freight"},
-    {n:"Mike J.",r:5,t:"Best rates in Laredo. Forklift was in great shape, quick pickup.",c:"Johnson Freight"},
-    {n:"Ana T.",r:4,t:"Professional service, clean pickup on time. Will rent again.",c:"Individual"},
-  ];
+  /* Reseñas reales desde Supabase (settings.testimonials); vacío por defecto — sin demo */
+  const [items]=useSetting("testimonials",[]);
   const [idx,setIdx]=useState(0);
   const [vw,setVw]=useState(typeof window!=="undefined"?window.innerWidth:1280);
   useEffect(()=>{const r=()=>setVw(window.innerWidth);window.addEventListener("resize",r);return()=>window.removeEventListener("resize",r)},[]);
@@ -4223,6 +4217,7 @@ function Testimonials(){
     return()=>clearInterval(t);
   },[lastInteract,maxIdx]);
   const click=(fn)=>{setLastInteract(Date.now());fn()};
+  if(!items.length)return null;
   return (
     <section style={{padding:"80px 24px",background:"var(--g0)"}}>
       <div style={{maxWidth:1280,margin:"0 auto"}}>
