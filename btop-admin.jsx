@@ -1574,32 +1574,33 @@ function SettlementMod({orders,setOrders,deliveries,fleet=[]}){
   </div>;
 }
 
-function BookingsMod(){
+function BookingsMod({orders=[]}){
   const [f,sf]=useState("all");const [tf,stf]=useState("all");
-  const all=admSeedBookings.filter(b=>(f==="all"||b.status===f)&&(tf==="all"||b.type===tf));
+  const src=orders.filter(o=>o.status!=="Cancelled").map(o=>({id:o.oid,client:o.un,unit:o.un2,type:String(o.uid||"").startsWith("sp-")?"space":"truck",start:o.sd,end:o.ed,total:(o.tp||0)+(o.dp||0),deposit:o.dp||0,status:(o.status==="Completed"||o.status==="Returned")?"completed":"active",phone:"",email:o.ue}));
+  const all=src.filter(b=>(f==="all"||b.status===f)&&(tf==="all"||b.type===tf));
   const {slice,Pager}=usePagination(all,5);
   return (
     <div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6"><St label="Total" value={admSeedBookings.length} icon={Calendar} breakdown={{
-        formula:"Count of all bookings (legacy table)",
-        source:"Bookings table — historical reference data",
-        description:"Total bookings in the legacy bookings table. This is reference/historical data — newer reservations live in the Reservations panel.",
-        items:admSeedBookings.map(b=>({title:b.id||b.client,subtitle:`${b.type} · ${b.client}`,value:`$${(b.total||0).toFixed(0)}`}))
-      }}/><St label="Active" value={admSeedBookings.filter(b=>b.status==="active").length} trend="up" icon={Check} breakdown={{
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6"><St label="Total" value={src.length} icon={Calendar} breakdown={{
+        formula:"Count of all bookings (from orders)",
+        source:"Orders (Supabase)",
+        description:"Total bookings derived from live orders.",
+        items:src.map(b=>({title:b.id||b.client,subtitle:`${b.type} · ${b.client}`,value:`$${(b.total||0).toFixed(0)}`}))
+      }}/><St label="Active" value={src.filter(b=>b.status==="active").length} trend="up" icon={Check} breakdown={{
         formula:"Bookings where status === 'active'",
-        source:"Bookings table",
+        source:"Orders (Supabase)",
         description:"Bookings currently in progress.",
-        items:admSeedBookings.filter(b=>b.status==="active").map(b=>({title:b.client||b.id,subtitle:b.type,value:`$${(b.total||0).toFixed(0)}`}))
-      }}/><St label="Revenue" value={$f(admSeedBookings.reduce((s,b)=>s+b.total,0))} trend="up" icon={DollarSign} breakdown={{
+        items:src.filter(b=>b.status==="active").map(b=>({title:b.client||b.id,subtitle:b.type,value:`$${(b.total||0).toFixed(0)}`}))
+      }}/><St label="Revenue" value={$f(src.reduce((s,b)=>s+b.total,0))} trend="up" icon={DollarSign} breakdown={{
         formula:"Sum of total across all bookings",
-        source:"Bookings table",
+        source:"Orders (Supabase)",
         description:"Combined revenue from all booking entries.",
-        items:admSeedBookings.map(b=>({title:b.client||b.id,subtitle:b.type,value:`$${(b.total||0).toFixed(0)}`}))
-      }}/><St label="Deposits" value={$f(admSeedBookings.filter(b=>b.status==="active").reduce((s,b)=>s+b.deposit,0))} icon={Shield} breakdown={{
+        items:src.map(b=>({title:b.client||b.id,subtitle:b.type,value:`$${(b.total||0).toFixed(0)}`}))
+      }}/><St label="Deposits" value={$f(src.filter(b=>b.status==="active").reduce((s,b)=>s+b.deposit,0))} icon={Shield} breakdown={{
         formula:"Sum of deposit across active bookings",
-        source:"Bookings table",
-        description:"Security deposits currently held for active bookings. Returned at end of rental if no damages.",
-        items:admSeedBookings.filter(b=>b.status==="active").map(b=>({title:b.client||b.id,subtitle:b.type,value:`$${(b.deposit||0).toFixed(0)}`}))
+        source:"Orders (Supabase)",
+        description:"Security deposits currently held for active bookings.",
+        items:src.filter(b=>b.status==="active").map(b=>({title:b.client||b.id,subtitle:b.type,value:`$${(b.deposit||0).toFixed(0)}`}))
       }}/></div>
       <div className="flex gap-3 mb-5 flex-wrap">
         <div className="flex gap-1 bg-white border border-stone-200 rounded-full p-1">{[["all","All"],["active","Active"],["completed","Done"]].map(([k,l])=>(<button key={k} onClick={()=>sf(k)} className={`px-4 py-1.5 rounded-full text-sm ${f===k?"bg-blue-900 text-white":"text-stone-600"}`}>{l}</button>))}</div>
@@ -1614,7 +1615,7 @@ function BookingsMod(){
 function ContactsMod({contacts:propContacts,setContacts:propSetContacts,orders=[],clientDocsAll={},depositReturnAll={},sendMagicLink}){
   const [q,setQ]=useState("");
   /* Use props if provided (single source of truth from App), otherwise fallback to local state */
-  const [localContacts,setLocalContacts]=useState(admSeedContacts);
+  const [localContacts,setLocalContacts]=useState([]);
   const contacts=propContacts||localContacts;
   const setContacts=propSetContacts||setLocalContacts;
   const [adding,setAdding]=useState(false);
@@ -1975,11 +1976,18 @@ function MessagesMod({messages,setMessages}){
 }
 
 /* ═══ PAYMENTS ═══ */
-function PayMod(){
+function PayMod({orders=[]}){
   const [filter,setFilter]=useState("all");
-  const filtered=filter==="all"?admSeedTx:admSeedTx.filter(t=>t.status===filter);
+  const mLbl=m=>m==="card"?"Stripe":m==="zelle"?"Zelle":m==="cash"?"Cash":(m==="invoice"||m==="credit")?"Credit":(m||"—");
+  const txs=orders.filter(o=>o.status!=="Cancelled").map(o=>({id:o.oid,date:(o.approvedAt||o.od||"").slice(0,10),client:o.un,amount:(o.reservationPaid||o.dp||0)+(o.tp||0),module:String(o.uid||"").startsWith("sp-")?"Space":"Truck",method:mLbl(o.payMethod),status:(o.payState==="approved"||o.status==="Confirmed"||o.status==="Completed"||o.status==="Active")?"completed":"pending"}));
+  const filtered=filter==="all"?txs:txs.filter(t=>t.status===filter);
   const {slice,Pager}=usePagination(filtered,10);
-  const methods=[{n:"Stripe",share:62,vol:48200,s:"connected"},{n:"Zelle",share:23,vol:17900,s:"manual"},{n:"Cash / Check",share:15,vol:11700,s:"manual"}];
+  const revenue=txs.filter(t=>t.status==="completed").reduce((s,t)=>s+t.amount,0);
+  const deposits=orders.filter(o=>o.status!=="Cancelled"&&!o.settlementPaid).reduce((s,o)=>s+(o.dp||0),0);
+  const pendingAmt=txs.filter(t=>t.status==="pending").reduce((s,t)=>s+t.amount,0);
+  const methodAgg=["Stripe","Zelle","Cash","Credit"].map(n=>({n:n==="Cash"?"Cash / Check":n,vol:txs.filter(t=>t.method===n).reduce((s,t)=>s+t.amount,0)}));
+  const totalVol=methodAgg.reduce((s,m)=>s+m.vol,0)||1;
+  const methods=methodAgg.filter(m=>m.vol>0).map(m=>({...m,share:Math.round(m.vol/totalVol*100),s:m.n==="Stripe"?"connected":"manual"}));
 
   const exportCSV=()=>{
     const headers=["Date","Client","Amount","Module","Method","Status"];
@@ -1992,26 +2000,26 @@ function PayMod(){
 
   return (
     <div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6"><St label="Revenue" value="$43,200" delta="+17%" trend="up" icon={TrendingUp} breakdown={{
-        formula:"Sum of completed payments in the last 30 days (demo value — wire up to live transactions in production)",
-        source:"Transactions table",
-        description:"Gross revenue collected over the rolling 30-day window. Hard-coded demo value; in production this would query the payment processor.",
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6"><St label="Revenue" value={`$${revenue.toLocaleString()}`} trend="up" icon={TrendingUp} breakdown={{
+        formula:"Sum of completed payments (orders confirmed/active/completed)",
+        source:"Orders (Supabase)",
+        description:"Gross revenue collected across validated orders.",
+        items:txs.filter(t=>t.status==="completed").map(t=>({title:`${t.id} · ${t.module}`,subtitle:`${t.client||""} · ${t.method}`,value:`$${(t.amount||0).toLocaleString()}`}))
+      }}/><St label="Deposits" value={`$${deposits.toLocaleString()}`} trend="up" icon={Shield} breakdown={{
+        formula:"Sum of deposits on non-cancelled, non-settled orders",
+        source:"Orders (Supabase)",
+        description:"Security deposits currently held for active rentals.",
         items:[]
-      }}/><St label="Deposits" value="$8,450" trend="up" icon={Shield} breakdown={{
-        formula:"Sum of deposits currently held",
-        source:"Transactions table (demo)",
-        description:"Security deposits in escrow for active rentals. Returned at end of rental.",
-        items:[]
-      }}/><St label="Pending" value="$3,500" trend="down" icon={FileText} breakdown={{
+      }}/><St label="Pending" value={`$${pendingAmt.toLocaleString()}`} trend="down" icon={FileText} breakdown={{
         formula:"Sum of payments with status === 'pending'",
-        source:"Transactions table (demo)",
-        description:"Charges awaiting clearance from payment processor.",
-        items:[]
-      }}/><St label="Transactions" value={admSeedTx.length} icon={Activity} breakdown={{
-        formula:"Count of all transactions",
-        source:"Transactions table",
-        description:"All payment events recorded in the system.",
-        items:admSeedTx.map(t=>({title:`${t.id||"TX"} · ${t.type||""}`,subtitle:`${t.client||""} · ${t.method||""}`,value:`$${(t.amount||0).toFixed(0)}`}))
+        source:"Orders (Supabase)",
+        description:"Charges awaiting validation.",
+        items:txs.filter(t=>t.status==="pending").map(t=>({title:`${t.id} · ${t.module}`,subtitle:`${t.client||""} · ${t.method}`,value:`$${(t.amount||0).toLocaleString()}`}))
+      }}/><St label="Transactions" value={txs.length} icon={Activity} breakdown={{
+        formula:"Count of all order-derived transactions",
+        source:"Orders (Supabase)",
+        description:"All payment events derived from orders.",
+        items:txs.map(t=>({title:`${t.id} · ${t.module}`,subtitle:`${t.client||""} · ${t.method}`,value:`$${(t.amount||0).toLocaleString()}`}))
       }}/></div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">{methods.map(m=>(<div key={m.n} className="bg-white border border-stone-200 rounded-2xl p-5"><div className="flex items-start justify-between mb-3"><h4 className="font-semibold">{m.n}</h4><Pill tone={m.s==="connected"?"emerald":"amber"}>{m.s}</Pill></div><div className="text-2xl font-semibold">{m.share}%</div><div className="h-1.5 bg-stone-100 rounded-full overflow-hidden mt-3"><div className="h-full bg-blue-900" style={{width:`${m.share}%`}}/></div><p className="text-xs text-stone-500 mt-3">{$f(m.vol)} processed</p></div>))}</div>
       <SC title={`Transactions (${filtered.length})`} action={
@@ -2638,17 +2646,6 @@ function ConfigMod({gateways,setGateways,hours,setHours,alarmEnabled,setAlarmEna
       {/* SECURITY */}
       <SC title="Security"><div className="space-y-3">{[{l:"Session Timeout (30m)",on:true}].map(s=>(<div key={s.l} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0"><span className="text-sm font-medium">{s.l}</span><div className={`w-10 h-6 rounded-full flex items-center px-0.5 cursor-pointer ${s.on?"bg-emerald-500":"bg-stone-300"}`}><div className={`w-5 h-5 bg-white rounded-full shadow-sm ${s.on?"translate-x-4":""}`}/></div></div>))}</div></SC>
 
-      {/* DEMO DATA RESET */}
-      <SC title="Demo Data">
-        <p className="text-sm text-stone-500 mb-3">This demo stores data (orders, carts, contracts, credit lines, signatures, etc.) in your browser. Reset it to clear test data and restore the seeded demo state.</p>
-        {!resetConfirm
-          ? <button onClick={()=>setResetConfirm(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-full text-sm font-semibold hover:bg-red-100"><Trash2 className="w-4 h-4"/>Reset demo data</button>
-          : <div className="flex items-center gap-3 flex-wrap p-3 bg-red-50 border border-red-200 rounded-xl">
-              <span className="text-sm text-red-800 font-semibold">This clears all local demo data and reloads. Continue?</span>
-              <button onClick={()=>{try{Object.keys(window.localStorage).filter(k=>k.startsWith("btop_")).forEach(k=>window.localStorage.removeItem(k))}catch(e){}window.location.reload()}} className="px-4 py-2 bg-red-600 text-white rounded-full text-sm font-semibold">Yes, reset &amp; reload</button>
-              <button onClick={()=>setResetConfirm(false)} className="px-4 py-2 border border-stone-200 rounded-full text-sm font-semibold">Cancel</button>
-            </div>}
-      </SC>
     </div>
   );
 }
@@ -3755,7 +3752,7 @@ export default function App(){
   useEffect(()=>{let off=false;const n=(v,d)=>v==null?(d??0):Number(v);loadFleetUnits().then(rows=>{if(off||!rows)return;setFleet(rows.map(r=>{const s=r.specs||{};return{id:r.id,plate:r.plate,name:r.name,category:r.category,cat:r.category,year:r.year,make:r.make,model:r.model,status:r.status||"available",daily:n(r.daily),weekly:n(r.weekly),monthly:n(r.monthly),depD:n(r.deposit_daily,200),depW:n(r.deposit_weekly,300),depM:n(r.deposit_monthly,500),depositDaily:n(r.deposit_daily,200),depositWeekly:n(r.deposit_weekly,300),depositMonthly:n(r.deposit_monthly,500),rateMile:n(r.mile_daily),mileDaily:n(r.mile_daily),mileWeekly:n(r.mile_weekly),mileMonthly:n(r.mile_monthly),mileTiers:r.mile_tiers||[],fuelType:r.fuel_type,transmission:s.transmission||"",eqCapacity:s.eqCapacity||"",shortDesc:s.shortDesc||"",type:s.shortDesc||r.model,desc:s.shortDesc||"",img:catIcon(r.category)};}));}).catch(()=>{});return()=>{off=true};},[]);
   /* FLIP FASE 1 — hidrata los espacios de almacenamiento desde Supabase. Fail-safe: si falla, se queda el seed. */
   useEffect(()=>{let off=false;loadSpaces().then(rows=>{if(off||!rows)return;setSpaces(rows);}).catch(()=>{});return()=>{off=true};},[]);
-  const [contacts,setContacts]=useCollection("contacts",{pk:"id",authKey:user?.email,keyCols:c=>({name:c.name,email:c.email}),seed:admSeedContacts});
+  const [contacts,setContacts]=useCollection("contacts",{pk:"id",authKey:user?.email,keyCols:c=>({name:c.name,email:c.email}),seed:[]});
   const [cart,setCart]=useState([]);
   const [showCart,setShowCart]=useState(false);
   const [cartOpen,setCartOpen]=useState(false);
@@ -5254,8 +5251,10 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
       return next;
     });
   };
-  const [users,setUsers]=useState(admSeedUsers);
+  const [users,setUsers]=useState([]);
   const [roles,setRoles]=useState(admSeedRoles);
+  /* Lista de usuarios desde Supabase (profiles) — reemplaza el seed hardcoded */
+  useEffect(()=>{if(!supabase)return;loadProfiles().then(ps=>{if(ps)setUsers(ps.map(p=>({id:p.email,name:p.name,email:p.email,role:p.role==="admin"?"Super Admin":p.role==="sede"?"Fleet Manager":p.role==="sales"?"Sales Rep":"Client",status:"active",last:"—",initials:(p.name||p.email).slice(0,2).toUpperCase()})))}).catch(()=>{})},[]);
   const [gateways,setGateways]=useState({
     stripe:{connected:false,pubKey:"",secretKey:"",webhookSecret:"",mode:"test"},
     zelle:{enabled:true,email:"btoprentals@gmail.com",instructions:"Send your Zelle transfer and upload the receipt for verification."},
@@ -5350,7 +5349,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
           {section==="detfleet"&&<DetailedFleetMod fleet={fleet} bookings={bookings} setFleet={setFleet}/>}
           {section==="maintenance"&&<MaintenanceMod fleet={fleet} spaces={spaces} bookings={bookings} setBookings={setBookings} onViewUnit={(vid)=>{setSection("detfleet")}}/>}
           {section==="spaces"&&<SpacesMod spaces={spaces} setSpaces={setSpaces}/>}
-          {section==="bookings"&&<BookingsMod/>}
+          {section==="bookings"&&<BookingsMod orders={orders}/>}
           {section==="reservations"&&<ReservationsMod orders={orders} setOrders={setOrders} fleetBookings={bookings} emailTemplate={emailTemplate} setEmailTemplate={setEmailTemplate} emailLog={emailLog} sendConfirmationEmail={sendConfirmationEmail} renderEmailVars={renderEmailVars} authUsers={authUsers}/>}
           {section==="settlement"&&<SettlementMod orders={orders} setOrders={setOrders} deliveries={deliveries} fleet={fleet}/>}
           {section==="contacts"&&<ContactsMod contacts={contacts} setContacts={setContacts} orders={orders} clientDocsAll={clientDocsAll} depositReturnAll={depositReturnAll} sendMagicLink={sendMagicLink}/>}
@@ -5361,7 +5360,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
           {section==="contracts"&&<ContractsMod contracts={contracts} setContracts={setContracts} contractTpl={contractTpl} setContractTpl={setContractTpl} signaturesAll={signaturesAll} company={company} setCompany={setCompany} contractPolicy={contractPolicy} setContractPolicy={setContractPolicy} signContractAsBtop={signContractAsBtop} sendAgreementNow={sendAgreementNow}/>}
           {section==="posts"&&<PostsMod/>}
           {section==="messages"&&<MessagesMod messages={messages} setMessages={setMessages}/>}
-          {section==="pay"&&<PayMod/>}
+          {section==="pay"&&<PayMod orders={orders}/>}
           {section==="invoices"&&<InvoiceMod/>}
           {section==="users"&&<UsersMod users={users} setUsers={setUsers} roles={roles} setRoles={setRoles}/>}
           {section==="hq"&&<HQMod deliveries={deliveries} setDeliveries={setDeliveries} bookings={bookings} setBookings={setBookings}/>}
@@ -5686,7 +5685,7 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all
             const mine=clientDocs.filter(x=>x.category===k);
             const onPick=(e)=>{const f=e.target.files&&e.target.files[0];if(!f||!addClientDoc)return;const base={id:"doc-"+Date.now(),name:f.name,category:k,size:f.size,uploadedAt:new Date().toISOString()};
               if(f.size<1500000){const r=new FileReader();r.onload=()=>{addClientDoc({...base,dataUrl:r.result});t&&t("Document uploaded","success")};r.readAsDataURL(f);}
-              else{addClientDoc(base);t&&t("Document uploaded (large file: metadata only in demo)","success");}
+              else{addClientDoc(base);t&&t("Document uploaded (large file: reference stored)","success");}
               e.target.value="";};
             return <div key={k} style={{padding:20,background:"var(--g0)",borderRadius:14,border:"2px dashed var(--g2)"}}>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
@@ -6362,7 +6361,7 @@ function NewsPage({sv}){
     <h1 style={{fontSize:32,fontWeight:800,color:"var(--navy)",marginBottom:12,lineHeight:1.2}}>{sel.title}</h1>
     <div style={{display:"flex",gap:16,fontSize:13,color:"var(--g5)",marginBottom:32}}><span>{sel.date}</span><span>By {sel.author}</span><span>{sel.views} views</span></div>
     <p style={{fontSize:16,lineHeight:1.8,color:"var(--g7)",marginBottom:24}}>{sel.excerpt}</p>
-    <p style={{fontSize:16,lineHeight:1.8,color:"var(--g7)"}}>{sel.body||"Full article content would appear here. This is a demo placeholder for the complete article text with all details, images, and formatting."}</p>
+    <p style={{fontSize:16,lineHeight:1.8,color:"var(--g7)"}}>{sel.body||""}</p>
   </div></div>;
 
   return <div className="fi">
