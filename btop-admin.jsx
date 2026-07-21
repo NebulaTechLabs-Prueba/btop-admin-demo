@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { jsPDF } from "jspdf";
 import { usePersistentState, useRemoteState } from "./src/lib/persistence.js";
-import { loadFleetUnits, loadSpaces } from "./src/lib/catalog.js";
+import { loadFleetUnits, loadSpaces, loadProfiles } from "./src/lib/catalog.js";
 import { supabase, isSupabaseConfigured } from "./src/lib/supabase.js";
-import { useCollection, useSetting } from "./src/lib/collection.js";
+import { useCollection, useSetting, useEmailMap } from "./src/lib/collection.js";
 import {
   Plus, Search, Pencil, Trash2, Eye, EyeOff, X as Xx, Check, MapPin, Star, Clock, Users,
   LayoutDashboard, CreditCard, UserCog, Settings, Bell, ChevronDown, ChevronRight,
@@ -3746,6 +3746,8 @@ export default function App(){
     return()=>{clearInterval(interval);if(ctx&&ctx.state!=="closed"){try{ctx.close()}catch(e){}}};
   },[alarmActive,alarmEnabled,view,user]);
   const [users,setUsers]=useState(USERS_INIT);
+  /* Hidrata la lista de usuarios/staff desde Supabase (profiles) — reemplaza USERS_INIT en prod */
+  useEffect(()=>{if(!supabase)return;loadProfiles().then(ps=>{if(ps)setUsers(ps.map(p=>({email:p.email,role:p.role,name:p.name})))}).catch(()=>{})},[user?.email]);
   const [fleet,setFleet]=useState(()=>admSeedFleet.map(v=>({...v,id:v.id||v.plate,img:catIcon(v.category),cat:v.category,type:v.shortDesc||v.model,year:v.year,name:v.name,daily:v.daily,weekly:v.weekly,monthly:v.monthly,rateMile:v.mileDaily||0,depD:v.depositDaily||200,depW:v.depositWeekly||300,depM:v.depositMonthly||500,desc:v.shortDesc})));
   const [spaces,setSpaces]=useState(admSeedSpaces);
   /* FLIP FASE 1 — hidrata la flota desde Supabase (lectura pública). Fail-safe: si falla, se queda el seed.
@@ -3758,7 +3760,7 @@ export default function App(){
   const [showCart,setShowCart]=useState(false);
   const [cartOpen,setCartOpen]=useState(false);
   /* Live carts registry + persistent stores (demo): swap for Supabase later */
-  const [carts,setCarts]=useRemoteState("carts",[],{localKey:"btop_carts"});/* Phase-1 reference: same behavior on localStorage until Supabase+Auth land */
+  const [carts,setCarts]=useCollection("carts",{pk:"code",authKey:user?.email,keyCols:c=>({owner:c.owner,email:c.email,status:c.status}),seed:[]});
   const [cartCode,setCartCode]=usePersistentState("btop_cartCode",null);
   const [contracts,setContracts]=useCollection("contracts",{pk:"id",authKey:user?.email,seed:[]});
   const [contractTpl,setContractTpl]=useSetting("contract_template",DEFAULT_CONTRACT_TPL);
@@ -3775,20 +3777,20 @@ export default function App(){
   /* Company profile — single source of truth for contact details (editable in Settings) */
   const [company,setCompany]=useSetting("company",{name:"BTOP Rentals",address:"9807 Mines Rd #9, Laredo TX 78045",phone:"+1 469 690 712",email:"btoprentals@gmail.com",hours:"Mon–Fri 7AM–6PM · Sat 8AM–2PM"});
   /* Saved payment methods per client email (shared so checkout can prefill from the client's dashboard) */
-  const [savedPaysAll,setSavedPaysAll]=usePersistentState("btop_savedPays",{"cliente@test.com":[{id:1,type:"card",label:"Visa •••• 4242",nameOnCard:"Test Client",isDefault:true,status:"active"},{id:2,type:"cash",label:"Cash on Pickup",cashName:"Test Client",cashPhone:"(469) 555-0150",isDefault:false,status:"active"}]});
+  const [savedPaysAll,setSavedPaysAll]=useEmailMap("saved_payment_methods",user?.email);
   const savedPays=user?(savedPaysAll[user.email]||[]):[];
   const setSavedPays=(updater)=>{if(!user)return;setSavedPaysAll(prev=>{const cur=prev[user.email]||[];const next=typeof updater==="function"?updater(cur):updater;return{...prev,[user.email]:next}})};
   /* Client documents (uploaded by client, visible + downloadable by admin) — keyed by email */
-  const [clientDocsAll,setClientDocsAll]=usePersistentState("btop_clientDocs",{});
+  const [clientDocsAll,setClientDocsAll]=useEmailMap("client_documents",user?.email);
   const clientDocs=user?(clientDocsAll[user.email]||[]):[];
   const addClientDoc=(doc)=>{if(!user)return;setClientDocsAll(prev=>({...prev,[user.email]:[...(prev[user.email]||[]),doc]}))};
   const removeClientDoc=(id)=>{if(!user)return;setClientDocsAll(prev=>({...prev,[user.email]:(prev[user.email]||[]).filter(d=>d.id!==id)}))};
   /* Per-user hand-drawn signatures (each user saves one; replicated onto their contracts) — keyed by email */
-  const [signaturesAll,setSignaturesAll]=usePersistentState("btop_signatures",{});
+  const [signaturesAll,setSignaturesAll]=useEmailMap("signatures",user?.email);
   const mySignature=user?signaturesAll[user.email]:null;
   const saveMySignature=(dataUrl)=>{if(!user)return;setSignaturesAll(prev=>({...prev,[user.email]:{dataUrl,name:user.name,email:user.email,savedAt:nowISO(),consent:true}}))};
   /* Client's preferred deposit-return method (visible to admin; final method may still be agreed at return time) */
-  const [depositReturnAll,setDepositReturnAll]=usePersistentState("btop_depositReturn",{});
+  const [depositReturnAll,setDepositReturnAll]=useEmailMap("deposit_preferences",user?.email);
   const depositReturnPref=user?(depositReturnAll[user.email]||{method:"bank",bankName:"",routingNumber:"",accountNumber:"",zelleEmail:""}):null;
   const setDepositReturnPref=(updater)=>{if(!user)return;setDepositReturnAll(prev=>{const cur=prev[user.email]||{method:"bank"};const next=typeof updater==="function"?updater(cur):updater;return{...prev,[user.email]:next}})};
   const [creditLines,setCreditLines]=useCollection("credit_lines",{pk:"id",authKey:user?.email,keyCols:c=>({client_name:c.clientName,email:c.email}),seed:[]});
@@ -5263,11 +5265,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
   const [showLogout,setShowLogout]=useState(false);
   const [showNotifs,setShowNotifs]=useState(false);
   const [drawerOpen,setDrawerOpen]=useState(false);
-  const [notifs,setNotifs]=useState([
-    {id:"n1",type:"truck",text:"Carlos Mendez booked Freightliner Cascadia",time:"3 min ago",read:false,section:"reservations"},
-    {id:"n2",type:"space",text:"Gulf Coast Freight renewed Warehouse B1 lease",time:"1 hr ago",read:false,section:"spaces"},
-    {id:"n3",type:"truck",text:"Laura Vega booked GMC 3500 Box Truck",time:"2 hr ago",read:true,section:"reservations"},
-  ]);
+  const [notifs,setNotifs]=useCollection("notifications",{pk:"id",seed:[]});
   const msgNotifs=(messages||[]).filter(m=>!m.read).map(m=>({id:"msg-"+m.id,type:"message",text:`New message from ${m.name}: ${m.type}`,time:m.date,read:false,section:"messages",msgId:m.id}));
   const allNotifs=[...msgNotifs,...notifs];
   const unreadCount=allNotifs.filter(n=>!n.read).length;
@@ -6351,7 +6349,8 @@ function StoragePage({sv,ac,setCartOpen,spaces:propSpaces,cart=[]}){
 }
 
 function NewsPage({sv}){
-  const pub=seedPosts.filter(p=>p.status==="published");
+  const [posts]=useCollection("posts",{pk:"id",seed:[]});
+  const pub=posts.filter(p=>p.status==="published");
   const feat=pub.find(p=>p.featured)||pub[0];
   const side=pub.filter(p=>p.id!==feat?.id).slice(0,3);
   const rest=pub.filter(p=>p.id!==feat?.id).slice(3);
@@ -6401,7 +6400,7 @@ function NewsPage({sv}){
 
 /* ═══ POSTS (Admin) ═══ */
 function PostsMod(){
-  const [posts,setPosts]=useState(seedPosts);
+  const [posts,setPosts]=useCollection("posts",{pk:"id",seed:[]});
   const [editing,setEditing]=useState(null);
   const [creating,setCreating]=useState(false);
   const [preview,setPreview]=useState(null);

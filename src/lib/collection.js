@@ -67,6 +67,43 @@ export function useCollection(table, { pk = 'id', seed = [], keyCols = () => ({}
 }
 
 /**
+ * Supabase-backed map keyed by email → the app's `{email: value}` per-user stores
+ * (signatures, saved payments, client docs, deposit prefs). One jsonb row per email.
+ */
+export function useEmailMap(table, authKey) {
+  const [map, setMap] = useState({});
+  const ready = useRef(!isSupabaseConfigured);
+  useEffect(() => {
+    if (!supabase) return;
+    let off = false;
+    supabase.from(table).select('email,data').then(({ data, error }) => {
+      if (!off && !error && Array.isArray(data)) {
+        const m = {};
+        data.forEach((r) => { if (r.email) m[r.email] = r.data; });
+        setMap(m);
+      }
+      ready.current = true;
+    });
+    return () => { off = true; };
+  }, [authKey, table]);
+  const set = useCallback((updater) => {
+    setMap((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (supabase && ready.current) {
+        Object.keys(next).forEach((email) => {
+          if (JSON.stringify(prev[email]) !== JSON.stringify(next[email])) {
+            supabase.from(table).upsert({ email, data: next[email] }, { onConflict: 'email' })
+              .then(({ error }) => { if (error) console.warn(`[emailmap ${table}]`, error.message); });
+          }
+        });
+      }
+      return next;
+    });
+  }, [table]);
+  return [map, set];
+}
+
+/**
  * Supabase-backed singleton (one row in `settings` keyed by `key`, jsonb value).
  * Keeps the default when Supabase has no row (fail-safe), write-throughs on change.
  */
