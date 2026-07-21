@@ -1,134 +1,150 @@
-# Deploy BTOP Rentals to Hetzner (Nginx + HTTPS)
+# Deploy BTOP Rentals — Hetzner + Node 24 + PM2 + Caddy
 
-The app is a **static Vite + React SPA** (no backend required for the demo — the
-`server/` folder is a local-only dev API). Deployment = build static files and serve
-them with Nginx, with automatic HTTPS from Let's Encrypt.
+Stack: **Node 24 (NodeSource) · PM2 · Caddy (TLS automático) · deploy vía GitHub Actions (SSH)**.
+La app es una SPA estática de Vite; un pequeño servidor Express (`deploy/server.mjs`) sirve
+`dist/` en `localhost:3000` bajo PM2, y **Caddy** hace `reverse_proxy` con HTTPS automático.
 
-**Method chosen:** Nginx directly on a Hetzner Cloud VPS · Domain + automatic HTTPS.
+- Servidor: Hetzner CX22, Ubuntu, IP pública `SERVER_IP`.
+- Dominio: **btop-rentals.com** (DNS en Spaceship).
+- Repo: `https://github.com/NebulaTechLabs-Prueba/btop-rentals`.
+
+> Sustituye `SERVER_IP` por la IP real del server en los comandos DNS y en los GitHub Secrets.
 
 ---
 
-## 0. Prerequisites
+## 1. DNS en Spaceship
 
-- A **Hetzner Cloud** server (Ubuntu 24.04 LTS, the smallest CX22 is plenty).
-- The domain **btop-rentals.com** (already registered on Spaceship).
-- SSH access to the server as a sudo user.
+Spaceship → dominio → **Advanced DNS** → añade (a la IP del server):
 
-## 1. Point the domain at the server (DNS on Spaceship)
+| Type | Host | Value       | TTL  |
+|------|------|-------------|------|
+| A    | `@`  | `SERVER_IP` | Auto |
+| A    | `www`| `SERVER_IP` | Auto |
 
-In the **Spaceship** dashboard → your domain → **Advanced DNS / DNS records**, add records
-pointing to the Hetzner server's public IP (from the Hetzner Cloud console):
+Verifica antes de emitir el certificado: `dig +short btop-rentals.com` → `SERVER_IP`.
 
-| Type  | Host (Name) | Value / Points to | TTL  |
-|-------|-------------|-------------------|------|
-| A     | `@`         | `<SERVER_IPv4>`   | Auto |
-| A     | `www`       | `<SERVER_IPv4>`   | Auto |
-| AAAA  | `@`         | `<SERVER_IPv6>`   | Auto |
-| AAAA  | `www`       | `<SERVER_IPv6>`   | Auto |
+## 2. SSH inicial + hardening
 
-- Serve at the **apex** `btop-rentals.com` (host `@`) plus `www`.
-- Remove any Spaceship "parking" / forwarding record that also targets `@`, or it will conflict.
-- Propagation is usually minutes. Verify before requesting the certificate:
+Entra como root (Hetzner te dio la contraseña por email):
 
 ```bash
-dig +short btop-rentals.com     # must return <SERVER_IPv4>
+ssh root@SERVER_IP
 ```
 
-> If Spaceship shows "nameservers not set to Spaceship DNS", switch the domain to **Spaceship
-> default nameservers** first, otherwise the records above won't take effect.
-
-## 2. Install Node.js, Nginx, Certbot, Git
+### 2a. Crear usuario de deploy y darle tu llave
 
 ```bash
-sudo apt update && sudo apt upgrade -y
-# Node.js 20 LTS
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs nginx git
-# Certbot (Let's Encrypt) via snap
-sudo snap install core && sudo snap refresh core
-sudo snap install --classic certbot
-sudo ln -sf /snap/bin/certbot /usr/bin/certbot
+adduser --disabled-password --gecos "" deploy
+usermod -aG sudo deploy
+echo 'deploy ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/deploy   # sudo sin password (para PM2 startup / caddy)
+install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
 ```
 
-## 3. Firewall (optional but recommended)
+Desde **tu máquina local**, copia tu llave pública (crea una con `ssh-keygen -t ed25519` si no tienes):
+
+```bash
+ssh-copy-id -i ~/.ssh/id_ed25519.pub deploy@SERVER_IP
+# o pega tu clave pública manualmente en /home/deploy/.ssh/authorized_keys
+```
+
+**Prueba** que entras sin password antes de seguir: `ssh deploy@SERVER_IP`.
+
+### 2b. Endurecer SSH (solo cuando la llave ya funcione)
+
+```bash
+sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+sudo systemctl restart ssh
+```
+
+### 2c. Firewall UFW
 
 ```bash
 sudo ufw allow OpenSSH
-sudo ufw allow 'Nginx Full'   # opens 80 + 443
+sudo ufw allow 80
+sudo ufw allow 443
 sudo ufw --force enable
 ```
 
-## 4. Get the code and build
+## 3. Instalar Node 24, PM2, Caddy
 
 ```bash
-# Pick a location for the checkout (build happens here; only dist/ is served)
-sudo mkdir -p /opt && cd /opt
-sudo git clone https://github.com/NebulaTechLabs-Prueba/btop-rentals.git btop
-sudo chown -R "$USER":"$USER" /opt/btop
+# Node.js 24
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt install -y nodejs git
+
+# PM2
+sudo npm install -g pm2
+
+# Caddy (repo oficial)
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update && sudo apt install -y caddy
+```
+
+## 4. Primer deploy manual
+
+Como usuario **deploy**:
+
+```bash
+sudo mkdir -p /opt/btop && sudo chown -R deploy:deploy /opt/btop
+git clone https://github.com/NebulaTechLabs-Prueba/btop-rentals.git /opt/btop
 cd /opt/btop
 
-# Supabase (public keys — safe in the frontend; RLS protects the data)
-export VITE_SUPABASE_URL=https://onpvhedeinpsggdanylg.supabase.co
-export VITE_SUPABASE_ANON_KEY=sb_publishable_Ra9k4PKwOv5qRiyTwGO26Q_kDvIWdCc
+# Secrets del frontend (Vite los hornea en build). Estos son públicos (anon/publishable).
+cat > .env.local <<'EOF'
+VITE_SUPABASE_URL=https://onpvhedeinpsggdanylg.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_Ra9k4PKwOv5qRiyTwGO26Q_kDvIWdCc
+EOF
 
 npm ci
-BASE_PATH=/ npm run build      # domain root → base "/"
+npm run build
+pm2 start ecosystem.config.cjs
+pm2 save
+sudo env PATH=$PATH pm2 startup systemd -u deploy --hp /home/deploy   # arranque en boot
 ```
 
-This produces `/opt/btop/dist`.
+Verifica el proceso: `pm2 status` y `curl -I localhost:3000` (debe dar `200`).
 
-## 5. Configure Nginx
+## 5. Configurar Caddy
 
 ```bash
-# Publish the built files
-sudo mkdir -p /var/www/btop-rentals
-sudo rsync -a --delete dist/ /var/www/btop-rentals/
-
-# Install the site config (already set to btop-rentals.com)
-sudo cp deploy/nginx/btop-rentals.conf /etc/nginx/sites-available/btop-rentals.conf
-sudo ln -sf /etc/nginx/sites-available/btop-rentals.conf /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default   # remove the default welcome site
-
-sudo nginx -t && sudo systemctl reload nginx
+sudo cp /opt/btop/deploy/Caddyfile /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
 ```
 
-At this point the site is live over **HTTP**.
+Caddy emite el certificado automáticamente (necesita que el DNS ya apunte y los puertos 80/443 abiertos).
+Prueba: `https://btop-rentals.com`.
 
-## 6. Enable HTTPS (automatic, Let's Encrypt)
+## 6. Deploy continuo (GitHub Actions)
 
-```bash
-sudo certbot --nginx -d btop-rentals.com -d www.btop-rentals.com
-```
+El workflow `.github/workflows/deploy.yml` (ya en el repo) hace SSH → `git pull` → escribe
+`.env.local` desde Secrets → `npm ci` → `npm run build` → `pm2 restart btop-rentals --update-env`.
 
-Certbot obtains the certificate, rewrites the Nginx config to add the `443` block, and
-sets up an HTTP→HTTPS redirect. Renewal is automatic (a systemd timer runs `certbot renew`);
-test it with `sudo certbot renew --dry-run`.
+### Secrets a crear en GitHub (repo → Settings → Secrets and variables → Actions)
 
-Your site is now live at `https://btop-rentals.com`.
+| Secret | Valor |
+|--------|-------|
+| `HETZNER_HOST` | `SERVER_IP` |
+| `HETZNER_USER` | `deploy` |
+| `HETZNER_SSH_KEY` | La **llave privada** ed25519 cuyo `.pub` está en `authorized_keys` de deploy |
+| `VITE_SUPABASE_URL` | `https://onpvhedeinpsggdanylg.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | `sb_publishable_Ra9k4PKwOv5qRiyTwGO26Q_kDvIWdCc` |
 
-## 7. Updating after new commits
+> Genera una llave dedicada para CI: `ssh-keygen -t ed25519 -f deploy_ci -N ""`, añade `deploy_ci.pub`
+> a `/home/deploy/.ssh/authorized_keys` en el server, y pega el contenido de `deploy_ci` (privada)
+> en `HETZNER_SSH_KEY`. (Si el server usa un puerto SSH distinto de 22, añade el secret `HETZNER_PORT`
+> y la línea `port:` al workflow.)
 
-From `/opt/btop`:
-
-```bash
-bash deploy/deploy.sh
-```
-
-The script pulls `main`, reinstalls deps, rebuilds with `BASE_PATH=/`, syncs `dist/` to
-`/var/www/btop-rentals`, and reloads Nginx. Override the webroot or base path if needed:
-
-```bash
-WEBROOT=/var/www/btop-rentals BASE_PATH=/ bash deploy/deploy.sh
-```
+A partir de ahí, cada push a `main` despliega solo. Redeploy manual en el server: `bash deploy/deploy.sh`.
 
 ---
 
-## Notes
-
-- **State/persistence:** the demo stores data in the browser's `localStorage` (no server DB).
-  Each visitor has their own data; it is not shared across devices. A real backend
-  (e.g. Supabase or a small API on the same VPS) is the next step when needed.
-- **`BASE_PATH`:** always `/` on the domain root. GitHub Pages keeps working because its
-  workflow sets `BASE_PATH=/btop-admin-demo/` — the two deploys don't conflict.
-- **No Docker needed** for this setup. If you later prefer containers, the same `dist/`
-  can be served by an `nginx:alpine` image.
+## Notas
+- **`--update-env`**: PM2 relee el entorno en cada restart. En una SPA estática los `VITE_*` se hornean
+  en el build; el flag queda correcto para cuando agregues backend en runtime.
+- **Persistencia:** el backend Supabase (`btop-rentals`, us-east-2) ya está provisionado y con datos.
+  El frontend aún usa localStorage; el "flip" de la capa de datos + Auth es el siguiente paso.
+- **Rollback:** `cd /opt/btop && git checkout <commit> && npm ci && npm run build && pm2 restart btop-rentals --update-env`.
