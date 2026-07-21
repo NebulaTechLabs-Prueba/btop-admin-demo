@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { jsPDF } from "jspdf";
 import { usePersistentState, useRemoteState } from "./src/lib/persistence.js";
+import { loadFleetUnits } from "./src/lib/catalog.js";
 import {
   Plus, Search, Pencil, Trash2, Eye, EyeOff, X as Xx, Check, MapPin, Star, Clock, Users,
   LayoutDashboard, CreditCard, UserCog, Settings, Bell, ChevronDown, ChevronRight,
@@ -3755,6 +3756,9 @@ export default function App(){
   const [users,setUsers]=useState(USERS_INIT);
   const [fleet,setFleet]=useState(()=>admSeedFleet.map(v=>({...v,id:v.id||v.plate,img:catIcon(v.category),cat:v.category,type:v.shortDesc||v.model,year:v.year,name:v.name,daily:v.daily,weekly:v.weekly,monthly:v.monthly,rateMile:v.mileDaily||0,depD:v.depositDaily||200,depW:v.depositWeekly||300,depM:v.depositMonthly||500,desc:v.shortDesc})));
   const [spaces,setSpaces]=useState(admSeedSpaces);
+  /* FLIP FASE 1 — hidrata la flota desde Supabase (lectura pública). Fail-safe: si falla, se queda el seed.
+     Supabase serializa columnas numeric como string → convertir a Number para price()/dep(). */
+  useEffect(()=>{let off=false;const n=(v,d)=>v==null?(d??0):Number(v);loadFleetUnits().then(rows=>{if(off||!rows)return;setFleet(rows.map(r=>{const s=r.specs||{};return{id:r.id,plate:r.plate,name:r.name,category:r.category,cat:r.category,year:r.year,make:r.make,model:r.model,status:r.status||"available",daily:n(r.daily),weekly:n(r.weekly),monthly:n(r.monthly),depD:n(r.deposit_daily,200),depW:n(r.deposit_weekly,300),depM:n(r.deposit_monthly,500),depositDaily:n(r.deposit_daily,200),depositWeekly:n(r.deposit_weekly,300),depositMonthly:n(r.deposit_monthly,500),rateMile:n(r.mile_daily),mileDaily:n(r.mile_daily),mileWeekly:n(r.mile_weekly),mileMonthly:n(r.mile_monthly),mileTiers:r.mile_tiers||[],fuelType:r.fuel_type,transmission:s.transmission||"",eqCapacity:s.eqCapacity||"",shortDesc:s.shortDesc||"",type:s.shortDesc||r.model,desc:s.shortDesc||"",img:catIcon(r.category)};}));}).catch(()=>{});return()=>{off=true};},[]);
   const [contacts,setContacts]=useState(admSeedContacts);
   const [cart,setCart]=useState([]);
   const [showCart,setShowCart]=useState(false);
