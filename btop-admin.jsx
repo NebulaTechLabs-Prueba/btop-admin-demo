@@ -14,14 +14,6 @@ import {
 } from "lucide-react";
 
 /* ─── DATA ─── */
-const FLEET = [
-  { id:"990", name:"Ottawa Yard Spotter", year:2007, type:"YT30 Spotter", cat:"Yard Spotter", daily:250, weekly:1000, monthly:3800, rateMile:0, depD:200, depW:500, depM:500, img:"🚛", desc:"Cummins diesel · Allison automatic · hydraulic-lift 5th wheel." },
-  { id:"17137", name:"Freightliner Cascadia", year:2017, type:"T/A Day Cab (Auto)", cat:"Daycab", daily:165, weekly:875, monthly:3600, rateMile:0, depD:200, depW:500, depM:1200, img:"🚚", desc:"Detroit DD13 410hp · 10-speed automatic daycab." },
-  { id:"1317", name:"Ram 1500 Tradesman", year:2014, type:"2 Door – 8ft Bed", cat:"Pickup", daily:50, weekly:300, monthly:1000, rateMile:0, depD:200, depW:300, depM:500, img:"🛻", desc:"5.7 V8 · spray-on bed liner · 8ft bed." },
-  { id:"1212", name:"GMC 3500 Box Truck", year:2020, type:"16ft", cat:"Box Truck", daily:60, weekly:300, monthly:1300, rateMile:0.15, depD:100, depW:150, depM:500, img:"📦", desc:"16ft Supreme Corp box · walk-in ramp." },
-  { id:"1116", name:"Mitsubishi Forklift", year:2016, type:"5,000lb Capacity", cat:"Forklift", daily:180, weekly:540, monthly:1620, rateMile:0, depD:200, depW:300, depM:500, img:"🏗️", desc:"5,000lb · 3-stage mast · side shift." },
-  { id:"0410", name:"Nilfisk Liberty SC60 Scrubber", year:2022, type:"Ride-On Floor Scrubber", cat:"Floor Scrubber", daily:325, weekly:975, monthly:2900, rateMile:0, depD:150, depW:400, depM:1200, img:"🧽", desc:"24V ride-on electric floor scrubber." },
-];
 const USERS_INIT = [
   { email:"admin@btop.com", pw:"admin@btop.com", role:"admin", name:"Admin", phone:"+1 469 690 712" },
   { email:"cliente@test.com", pw:"cliente@test.com", role:"client", name:"Cliente", phone:"(469) 555-0150" },
@@ -77,38 +69,7 @@ const admSeedFleet=FLEET_SEED.flatMap(u=>{
 });
 /* Real BTOP storage inventory: one warehouse yard product, 160 identical trailer-parking spaces. */
 const admSeedSpaces=[
-  {id:"s7777",name:"Warehouse Yard – Trailer Parking",type:"Outdoor",size:"Custom",customSize:"Trailer space",maxWeight:"—",surface:"Concrete",location:"Laredo Yard",access:"24/7",daily:15,weekly:75,monthly:150,deposit:0,status:"available",tenant:"",since:"",active:true,branch:"Laredo",internalNotes:"Trailer parking only.",docs:[],inventoryEnabled:true,totalStock:160,activeRentals:[
-    {oid:"ORD-YARD01",invNum:"INV-YARD01",tenant:"Martinez Logistics",tenantEmail:"info@martinez.com",tenantPhone:"(469) 555-0303",leaseStart:"2026-05-01",leaseEnd:"2026-10-31"},
-    {oid:"ORD-YARD02",invNum:"INV-YARD02",tenant:"Gulf Coast Freight",tenantEmail:"ops@gulfcoast.com",tenantPhone:"(469) 555-0404",leaseStart:"2026-06-01",leaseEnd:"2027-05-31"},
-    {oid:"ORD-YARD03",invNum:"INV-YARD03",tenant:"Border Logistics",tenantEmail:"fleet@borderlog.com",tenantPhone:"(469) 555-2020",leaseStart:"2026-04-10",leaseEnd:"2026-12-31"},
-  ]},
-];
-const admSeedBookings=[
-  {id:"b1",client:"Carlos Mendez",unit:"Freightliner Cascadia",type:"truck",start:"2026-04-10",end:"2026-04-24",total:2450,deposit:500,status:"active",phone:"(469) 555-0101",email:"carlos@email.com"},
-  {id:"b2",client:"Laura Vega",unit:"GMC 3500 Box Truck",type:"truck",start:"2026-04-12",end:"2026-04-19",total:360,deposit:150,status:"active",phone:"(469) 555-0202",email:"laura@email.com"},
-  {id:"b3",client:"Martinez Logistics",unit:"Yard A",type:"space",start:"2025-11-01",end:"2026-10-31",total:14400,deposit:1200,status:"active",phone:"(469) 555-0303",email:"info@martinez.com"},
-  {id:"b4",client:"John Smith",unit:"Dodge Ram",type:"truck",start:"2026-04-01",end:"2026-04-08",total:350,deposit:300,status:"completed",phone:"(469) 555-0505",email:"john@email.com"},
-  {id:"b5",client:"Gulf Coast Freight",unit:"Warehouse B1",type:"space",start:"2026-01-15",end:"2027-01-14",total:33600,deposit:2800,status:"active",phone:"(469) 555-0404",email:"ops@gulfcoast.com"},
-  {id:"b6",client:"Fresh Produce Inc.",unit:"Cold Storage E",type:"space",start:"2026-02-01",end:"2027-01-31",total:42000,deposit:3500,status:"active",phone:"(469) 555-0606",email:"billing@freshproduce.com"},
-];
-const admSeedTx=Array.from({length:20},(_,i)=>{const d=new Date(2026,3,15);d.setDate(d.getDate()-i);return{id:"tx"+i,date:d.toISOString().split("T")[0],client:["Carlos Mendez","Laura Vega","Martinez Logistics","John Smith","Gulf Coast"][i%5],amount:Math.floor(200+Math.random()*3000),module:i%2?"Space":"Truck",method:["Stripe","Zelle","Cash"][i%4],status:i%6?"completed":"pending"};});
-
-const admSeedContacts=[
-  {id:"c0",name:"Test Client",email:"cliente@test.com",phone:"(469) 555-0150",city:"Laredo",company:"",idDoc:"TX DL 00000000",registered:"2026-02-01",lastOrder:"",totalSpent:0,orders:0,hasAccount:true},
-  {id:"c1",name:"Carlos Mendez",email:"carlos@email.com",phone:"(469) 555-0101",city:"Laredo",company:"Mendez Trucking",idDoc:"TX DL 12345678",registered:"2026-01-15",lastOrder:"2026-04-10",totalSpent:4800,orders:3},
-  {id:"c2",name:"Laura Vega",email:"laura@email.com",phone:"(469) 555-0202",city:"Laredo",company:"",idDoc:"TX DL 87654321",registered:"2026-02-20",lastOrder:"2026-04-12",totalSpent:1080,orders:2},
-  {id:"c3",name:"John Smith",email:"john@email.com",phone:"(469) 555-0505",city:"San Antonio",company:"Smith & Sons",idDoc:"TX DL 11223344",registered:"2025-11-01",lastOrder:"2026-04-08",totalSpent:2100,orders:5},
-  {id:"c4",name:"Mike Johnson",email:"mike@email.com",phone:"(469) 555-0707",city:"Houston",company:"Johnson Freight",idDoc:"TX DL 55667788",registered:"2026-03-01",lastOrder:"2026-04-05",totalSpent:6200,orders:8},
-  {id:"c5",name:"Sarah Davis",email:"sarah@email.com",phone:"(469) 555-0808",city:"Dallas",company:"",idDoc:"",registered:"2026-04-01",lastOrder:"2026-04-14",totalSpent:450,orders:1},
-  {id:"c6",name:"Roberto Perez",email:"roberto@email.com",phone:"(469) 555-0909",city:"Laredo",company:"Perez Transport",idDoc:"TX DL 99001122",registered:"2025-09-15",lastOrder:"2026-03-28",totalSpent:12400,orders:14,hasAccount:true},
-  {id:"c7",name:"ABC Transport",email:"ops@abctransport.com",phone:"(469) 555-1010",city:"Laredo",company:"ABC Transport LLC",idDoc:"EIN 82-1234567",registered:"2025-08-01",lastOrder:"2026-04-13",totalSpent:28500,orders:22,hasAccount:true},
-  {id:"c8",name:"Maria Gonzalez",email:"maria.g@email.com",phone:"(469) 555-1111",city:"McAllen",company:"",idDoc:"TX DL 33445566",registered:"2026-03-20",lastOrder:"",totalSpent:0,orders:0},
-];
-
-const admSeedUsers=[
-  {id:"u1",name:"Admin BTOP",email:"admin@btop.com",role:"Super Admin",status:"active",last:"2 min ago",initials:"AB"},
-  {id:"u2",name:"Maria Garcia",email:"maria@btop.com",role:"Fleet Manager",status:"active",last:"15 min ago",initials:"MG"},
-  {id:"u3",name:"Ventas",email:"ventas@btop.com",role:"Sales Rep",status:"active",last:"1 hr ago",initials:"VE"},
+  {id:"s7777",name:"Warehouse Yard – Trailer Parking",type:"Outdoor",size:"Custom",customSize:"Trailer space",maxWeight:"—",surface:"Concrete",location:"Laredo Yard",access:"24/7",daily:15,weekly:75,monthly:150,deposit:0,status:"available",tenant:"",since:"",active:true,branch:"Laredo",internalNotes:"Trailer parking only.",docs:[],inventoryEnabled:true,totalStock:160,activeRentals:[]},
 ];
 const admSeedRoles=[
   {id:"r1",name:"Super Admin",scope:"Full access",users:1,perms:[3,3,3,3,3,3]},
@@ -117,15 +78,6 @@ const admSeedRoles=[
 ];
 const PERMS=["Fleet","Spaces","Bookings","Payments","Users","Settings"];
 
-const seedPosts=[
-  {id:"p1",title:"BTOP Expands Fleet with New Freightliner Cascadia Units",slug:"btop-expands-fleet-cascadia",excerpt:"We've added 3 new 2026 Freightliner Cascadias to our fleet, featuring latest fuel-efficient technology.",body:"BTOP Rentals added three new 2026 Freightliner Cascadia daycabs with DD15 engines and advanced driver assistance. Available now for daily, weekly, or monthly rental.",date:"2026-04-15",author:"Admin BTOP",status:"published",featured:true,views:342,cat:"Fleet",tags:["fleet","trucks","new"],readTime:3,comments:true,metaTitle:"",metaDesc:"",img:""},
-  {id:"p2",title:"Storage Space Expansion — New Refrigerated Units Available",slug:"storage-expansion-refrigerated",excerpt:"Cold storage now available for temperature-sensitive cargo. 20ft and 40ft units ready.",body:"New refrigerated storage units now available. 20ft and 40ft with 24/7 temperature monitoring.",date:"2026-04-10",author:"Admin BTOP",status:"published",featured:false,views:218,cat:"Storage",tags:["storage","cold"],readTime:2,comments:true,metaTitle:"",metaDesc:"",img:""},
-  {id:"p3",title:"Spring Special: 15% Off Monthly Truck Rentals",slug:"spring-special-15-off",excerpt:"Book any truck for a full month and save 15%. Offer valid through May 31st.",body:"Spring promo: 15% off monthly truck rentals. All categories. Valid through May 31, 2026.",date:"2026-04-05",author:"Admin BTOP",status:"published",featured:false,views:567,cat:"Promo",tags:["promo","discount"],readTime:1,comments:false,metaTitle:"",metaDesc:"",img:""},
-  {id:"p4",title:"New Industrial Equipment: Bobcat S650 and CAT Excavator",slug:"new-industrial-equipment",excerpt:"Heavy-duty equipment now available for construction and landscaping projects.",body:"New Bobcat S650 and CAT 320 excavator available for rental with operator options.",date:"2026-03-28",author:"Admin BTOP",status:"published",featured:false,views:189,cat:"Equipment",tags:["equipment","construction"],readTime:2,comments:true,metaTitle:"",metaDesc:"",img:""},
-  {id:"p5",title:"Safety First: Updated Driver Requirements for CDL Vehicles",slug:"updated-driver-requirements",excerpt:"Important update on documentation needed for semi-truck rentals.",body:"CDL vehicles now require: valid CDL A/B, 2+ years experience, clean MVR, DOT medical certificate.",date:"2026-03-20",author:"Admin BTOP",status:"published",featured:false,views:421,cat:"Policy",tags:["policy","safety","cdl"],readTime:3,comments:false,metaTitle:"",metaDesc:"",img:""},
-  {id:"p6",title:"Customer Spotlight: Martinez Logistics Partnership",slug:"martinez-logistics-spotlight",excerpt:"How Martinez Logistics scaled their operations with BTOP Rentals yard spaces.",body:"Martinez Logistics scaled 40% in 6 months using BTOP yard spaces and equipment.",date:"2026-03-15",author:"Admin BTOP",status:"hidden",featured:false,views:156,cat:"Story",tags:["customer","story"],readTime:4,comments:true,metaTitle:"",metaDesc:"",img:""},
-];
-const revS=[18200,21100,19800,24900,27500,23600,22200,26100,29200,28000,31800,30500,28700,27300,30300,33200,34500,36100,33200,31600,34400,36200,38800,37400,40200,41600,39100,37600,40400,43200];
 
 /* ═══ NAV ═══ */
 const ADM_NAV=[
@@ -4159,7 +4111,7 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
       {view==="home"&&<Home fleet={fleet} sv={setView} ac={addCart} t={t} bookings={fleetBookings} cart={cart} orders={orders} spaces={spaces}/>}
       {view==="fleet"&&<Fl fleet={fleet} sv={setView} ac={addCart} bookings={fleetBookings} setCartOpen={setCartOpen} t={t} cart={cart} orders={orders}/>}
       {view==="storage"&&<StoragePage sv={setView} ac={addCart} setCartOpen={setCartOpen} spaces={spaces} cart={cart}/>}
-      {view==="calendar"&&<CalendarPage fleet={fleet} bookings={fleetBookings}/>}
+      {view==="calendar"&&<CalendarPage fleet={fleet} bookings={fleetBookings} spaces={spaces}/>}
       
       {view==="news"&&<NewsPage sv={setView}/>}
       {view==="contact"&&<Co t={t} addMsg={addMessage} sv={setView} company={company}/>}
@@ -5063,7 +5015,7 @@ function CheckoutPage({cart,rmCart,cTotal,user,confirm,cancel,sv,company={},cred
           <div style={{background:"#fff",borderRadius:12,border:"2px solid var(--g2)",padding:24}}>
             <p style={{fontSize:13,color:"var(--g5)",marginBottom:16,textAlign:"center"}}>Stripe's secure payment form handles everything. Your card details are encrypted end-to-end.</p>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <div style={{padding:"14px 16px",background:"var(--g0)",borderRadius:8,border:"1px solid var(--g2)",color:"var(--g3)",fontSize:15,fontFamily:"monospace"}}>4242 4242 4242 4242</div>
+              <div style={{padding:"14px 16px",background:"var(--g0)",borderRadius:8,border:"1px solid var(--g2)",color:"var(--g3)",fontSize:15,fontFamily:"monospace"}}>•••• •••• •••• ••••</div>
               <div style={{display:"flex",gap:12}}><div style={{flex:1,padding:"14px 16px",background:"var(--g0)",borderRadius:8,border:"1px solid var(--g2)",color:"var(--g3)",fontSize:15}}>MM / YY</div><div style={{flex:1,padding:"14px 16px",background:"var(--g0)",borderRadius:8,border:"1px solid var(--g2)",color:"var(--g3)",fontSize:15}}>CVC</div></div>
               <div style={{padding:"14px 16px",background:"var(--g0)",borderRadius:8,border:"1px solid var(--g2)",color:payDetail.cardName?"var(--navy)":"var(--g3)",fontSize:15}}>{payDetail.cardName||"Name on card"}</div>
             </div>
@@ -5255,12 +5207,12 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
   const [roles,setRoles]=useState(admSeedRoles);
   /* Lista de usuarios desde Supabase (profiles) — reemplaza el seed hardcoded */
   useEffect(()=>{if(!supabase)return;loadProfiles().then(ps=>{if(ps)setUsers(ps.map(p=>({id:p.email,name:p.name,email:p.email,role:p.role==="admin"?"Super Admin":p.role==="sede"?"Fleet Manager":p.role==="sales"?"Sales Rep":"Client",status:"active",last:"—",initials:(p.name||p.email).slice(0,2).toUpperCase()})))}).catch(()=>{})},[]);
-  const [gateways,setGateways]=useState({
+  const [gateways,setGateways]=useSetting("payment_gateways",{
     stripe:{connected:false,pubKey:"",secretKey:"",webhookSecret:"",mode:"test"},
     zelle:{enabled:true,email:"btoprentals@gmail.com",instructions:"Send your Zelle transfer and upload the receipt for verification."},
     cash:{enabled:true,instructions:"Pay in cash or by check when picking up the vehicle."},
   });
-  const [hours,setHours]=useState([{day:"Monday",open:"07:00",close:"18:00",active:true},{day:"Tuesday",open:"07:00",close:"18:00",active:true},{day:"Wednesday",open:"07:00",close:"18:00",active:true},{day:"Thursday",open:"07:00",close:"18:00",active:true},{day:"Friday",open:"07:00",close:"18:00",active:true},{day:"Saturday",open:"08:00",close:"14:00",active:true},{day:"Sunday",open:"",close:"",active:false}]);
+  const [hours,setHours]=useSetting("business_hours",[{day:"Monday",open:"07:00",close:"18:00",active:true},{day:"Tuesday",open:"07:00",close:"18:00",active:true},{day:"Wednesday",open:"07:00",close:"18:00",active:true},{day:"Thursday",open:"07:00",close:"18:00",active:true},{day:"Friday",open:"07:00",close:"18:00",active:true},{day:"Saturday",open:"08:00",close:"14:00",active:true},{day:"Sunday",open:"",close:"",active:false}]);
   const [showLogout,setShowLogout]=useState(false);
   const [showNotifs,setShowNotifs]=useState(false);
   const [drawerOpen,setDrawerOpen]=useState(false);
@@ -5581,7 +5533,7 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}><X n="shield" s={16} c="var(--green)"/><span style={{fontSize:13,fontWeight:600,color:"var(--green)"}}>Secured by Stripe — Your data never touches our servers</span></div>
             {/* Simulated Stripe Elements */}
             <div style={{background:"#fff",borderRadius:12,border:"2px solid var(--g2)",padding:20,marginBottom:16}}>
-              <div style={{padding:16,background:"var(--g0)",borderRadius:8,border:"1px solid var(--g2)",textAlign:"center",color:"var(--g5)",fontSize:13}}><p>Stripe secure card form would appear here</p><p style={{fontFamily:"monospace",marginTop:8}}>4242 4242 4242 4242</p></div>
+              <div style={{padding:16,background:"var(--g0)",borderRadius:8,border:"1px solid var(--g2)",textAlign:"center",color:"var(--g5)",fontSize:13}}><p>Secure card payment by Stripe.</p><p style={{fontFamily:"monospace",marginTop:8}}>•••• •••• •••• ••••</p></div>
             </div>
             <div className="ig"><label>Name on Card (optional)</label><input className="inf" value={newCard.name} onChange={e=>sNewCard({name:e.target.value})} placeholder="John Doe"/></div>
           </div>
@@ -5891,7 +5843,7 @@ function Co({t,addMsg,sv,company={}}){const [sent,ss]=useState(false);const [nm,
 
 /* ═══ NEWS PAGE (Public) ═══ */
 /* ═══ CALENDAR PAGE (Public) ═══ */
-function CalendarPage({fleet,bookings=[]}){
+function CalendarPage({fleet,bookings=[],spaces=[]}){
   const [mo,setMo]=useState(new Date());
   const [moS,setMoS]=useState(new Date());
   const [viewF,setViewF]=useState("month");
@@ -5905,14 +5857,8 @@ function CalendarPage({fleet,bookings=[]}){
   const allVOn=activeVehicles.size===fleet.length;
   const noneVOn=activeVehicles.size===0;
 
-  const spaces=admSeedSpaces;
-  const spaceBookings=[
-    {sid:"s1",sname:"Yard A",start:"2025-11-01",end:"2026-10-31",type:"lease",tenant:"Martinez Logistics"},
-    {sid:"s2",sname:"Warehouse B1",start:"2026-01-15",end:"2027-01-14",type:"lease",tenant:"Gulf Coast Freight"},
-    {sid:"s5",sname:"Cold Storage E",start:"2026-02-01",end:"2027-01-31",type:"lease",tenant:"Fresh Produce Inc."},
-    {sid:"s3",sname:"Parking Bay C",start:"2026-05-01",end:"2026-05-31",type:"reserved",tenant:"Pending"},
-    {sid:"s4",sname:"Yard D",start:"2026-04-15",end:"2026-04-20",type:"maintenance",tenant:""},
-  ];
+  /* Space bookings derivados de las rentas activas de cada espacio (Supabase) */
+  const spaceBookings=(spaces||[]).flatMap(s=>(s.activeRentals||[]).map(r=>({sid:s.id,sname:s.name,start:r.leaseStart,end:r.leaseEnd,type:"lease",tenant:r.tenant})));
   const [activeSpaces,setActiveSpaces]=useState(()=>new Set());
   const toggleS=(id)=>setActiveSpaces(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n});
   const allSOn=activeSpaces.size===spaces.length;
