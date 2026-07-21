@@ -1,0 +1,22 @@
+# Caddy — reverse proxy con HTTPS automático (Let's Encrypt).
+# Instalar en el server como /etc/caddy/Caddyfile y recargar: sudo systemctl reload caddy
+#
+# Requisito: los registros DNS A/AAAA de btop-rentals.com y www ya deben apuntar
+# a la IP del server (Caddy valida el dominio para emitir el certificado).
+
+# www → apex (301)
+www.btop-rentals.com {
+	redir https://btop-rentals.com{uri} permanent
+}
+
+btop-rentals.com {
+	encode gzip zstd
+	reverse_proxy localhost:3000
+
+	# Cabeceras de seguridad básicas
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}

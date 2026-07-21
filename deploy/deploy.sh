@@ -1,30 +1,20 @@
 #!/usr/bin/env bash
-# BTOP Rentals — build & publish to Nginx webroot on the Hetzner VPS.
-# Run from the repo root ON the server:  bash deploy/deploy.sh
+# Redeploy manual en el server (equivalente a lo que hace el workflow de GitHub Actions).
+# Uso desde /opt/btop:  bash deploy/deploy.sh
 set -euo pipefail
+cd "$(dirname "$0")/.."
 
-WEBROOT="${WEBROOT:-/var/www/btop-rentals}"
-# Domain root → base path "/". Override BASE_PATH only if serving under a subpath.
-export BASE_PATH="${BASE_PATH:-/}"
-# Supabase public keys (safe in the frontend bundle; RLS protects the data).
-export VITE_SUPABASE_URL="${VITE_SUPABASE_URL:-https://onpvhedeinpsggdanylg.supabase.co}"
-export VITE_SUPABASE_ANON_KEY="${VITE_SUPABASE_ANON_KEY:-sb_publishable_Ra9k4PKwOv5qRiyTwGO26Q_kDvIWdCc}"
-
-echo "==> Pulling latest main"
+echo "==> git pull"
 git pull --ff-only origin main
 
-echo "==> Installing dependencies (npm ci)"
+echo "==> npm ci"
 npm ci
 
-echo "==> Building (BASE_PATH=$BASE_PATH)"
+echo "==> build (Vite lee VITE_* de .env.local)"
 npm run build
 
-echo "==> Publishing dist/ -> $WEBROOT"
-sudo mkdir -p "$WEBROOT"
-sudo rsync -a --delete dist/ "$WEBROOT/"
+echo "==> PM2 restart (--update-env relee el entorno)"
+pm2 restart btop-rentals --update-env || pm2 start ecosystem.config.cjs
+pm2 save
 
-echo "==> Reloading Nginx"
-sudo nginx -t
-sudo systemctl reload nginx
-
-echo "==> Done. Live at your configured domain."
+echo "==> Listo. Caddy sirve https://btop-rentals.com -> localhost:3000"
