@@ -3094,23 +3094,23 @@ function cartToStripeLineItems(cart){
     fleet_id:i.uid||null,
   }));
 }
+/* Create a Stripe Checkout Session and return its hosted URL (no redirect).
+   Returns null when Stripe is off / not configured / on error. */
+async function createCheckoutSession({items,orderRef,email,successUrl,cancelUrl}){
+  if(!(isSupabaseConfigured&&supabase))return null;
+  try{
+    const {data,error}=await supabase.functions.invoke("stripe-checkout",{body:{
+      line_items:items,order_ref:orderRef,customer_email:email||null,
+      success_url:successUrl,cancel_url:cancelUrl,
+    }});
+    if(!error&&data?.url)return data.url;
+  }catch(e){console.warn("[stripe-checkout]",e?.message);}
+  return null;
+}
 async function startStripeCheckout({cart,amount,orderRef,successUrl,cancelUrl,email}){
-  if(isSupabaseConfigured&&supabase){
-    try{
-      const {data,error}=await supabase.functions.invoke("stripe-checkout",{body:{
-        line_items:cartToStripeLineItems(cart),
-        amount_cents:Math.round((amount||0)*100),
-        order_ref:orderRef,customer_email:email||null,
-        success_url:successUrl,cancel_url:cancelUrl,
-      }});
-      if(!error&&data?.url){
-        window.location.assign(data.url); /* hand off to Stripe-hosted checkout */
-        return {redirected:true};
-      }
-      /* enabled:false or misconfig → the function returns {disabled:true} (no url) → demo */
-    }catch(e){console.warn("[stripe-checkout]",e?.message);}
-  }
-  /* DEMO / fallback: no real charge — simulate the round-trip to the hosted page */
+  const url=await createCheckoutSession({items:cartToStripeLineItems(cart),orderRef,email,successUrl,cancelUrl});
+  if(url){window.location.assign(url);return {redirected:true};}
+  /* DEMO / fallback: Stripe off or not configured — simulate the round-trip */
   await new Promise(r=>setTimeout(r,1400));
   return {redirected:false,simulated:true};
 }
@@ -3199,6 +3199,40 @@ function CartsMod({carts,setCarts,contacts=[]}){
 }
 
 /* ═══ ADMIN · ORDERS & PAYMENT VALIDATION ═══ */
+/* Generate a Stripe card payment link for an existing (Pending) order and share it
+   with the customer. On payment, the webhook confirms the order by order_ref=gid. */
+function PaymentLinkButton({order,orders=[]}){
+  const [stripeCfg]=useSetting("stripe_public",{enabled:false,mode:"test"});
+  const [loading,setLoading]=useState(false);
+  const [url,setUrl]=useState("");
+  const [copied,setCopied]=useState(false);
+  const [err,setErr]=useState("");
+  const gen=async()=>{
+    setLoading(true);setErr("");setUrl("");
+    const group=order.gid?orders.filter(o=>o.gid===order.gid):[order];
+    const link=await createCheckoutSession({items:cartToStripeLineItems(group),orderRef:order.gid||order.oid,email:order.ue,successUrl:"https://btop-rentals.com/?checkout=success",cancelUrl:"https://btop-rentals.com/?checkout=cancel"});
+    setLoading(false);
+    if(link)setUrl(link); else setErr("No se pudo generar el link. Verifica que Stripe esté activo y con la clave secreta cargada.");
+  };
+  const copy=()=>{try{navigator.clipboard.writeText(url);setCopied(true);setTimeout(()=>setCopied(false),1800);}catch(e){}};
+  if(!stripeCfg?.enabled) return <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-500">💳 Activa Stripe (Configuración → Connected Services) para generar links de cobro con tarjeta.</div>;
+  return <div className="space-y-2">
+    {!url&&<button onClick={gen} disabled={loading} className="w-full py-2.5 bg-blue-900 text-white rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-50">{loading?"Generando…":"💳 Generar link de cobro con tarjeta"}</button>}
+    {err&&<div className="text-xs text-red-600">{err}</div>}
+    {url&&<div className="space-y-2">
+      <div className="text-[11px] font-semibold text-stone-500 uppercase">Link de cobro · {stripeCfg.mode==="live"?"Live":"Test"}</div>
+      <div className="flex gap-2">
+        <input readOnly value={url} onFocus={e=>e.target.select()} className="flex-1 min-w-0 px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs font-mono"/>
+        <button onClick={copy} className="shrink-0 px-3 py-2 bg-blue-900 text-white rounded-lg text-xs font-semibold">{copied?"Copiado ✓":"Copiar"}</button>
+      </div>
+      <div className="flex gap-2">
+        <a href={url} target="_blank" rel="noreferrer" className="flex-1 text-center py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-700">Abrir</a>
+        <button onClick={gen} className="flex-1 py-2 border border-stone-200 rounded-lg text-xs font-semibold text-stone-600">Regenerar</button>
+      </div>
+      <p className="text-[11px] text-stone-400">Envíalo al cliente por WhatsApp o correo. Al pagar, la orden se confirma automáticamente.</p>
+    </div>}
+  </div>;
+}
 function OrdersPayMod({orders,setOrders,approveOrder,rejectOrder,authUsers=[]}){
   const [tab,setTab]=useState("pending");
   const repName=e=>{if(!e)return"";const u=authUsers.find(x=>x.email===e);return u?u.name:e};
@@ -3271,6 +3305,8 @@ function OrdersPayMod({orders,setOrders,approveOrder,rejectOrder,authUsers=[]}){
               <div className="flex justify-between text-sm"><span className="text-stone-500">Deposit</span><span className="font-bold text-emerald-700">{$f(o.dp||o.reservationPaid||0)}</span></div>
             </div>
             {o.status==="Pending"?<div className="flex flex-col gap-2">
+              <PaymentLinkButton order={o} orders={orders}/>
+              <div className="text-center text-[11px] text-stone-400 uppercase tracking-wide my-1">o valida manualmente</div>
               <button onClick={()=>{approveOrder(o.oid);setSel(null)}} className="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-2"><Check className="w-4 h-4"/>Approve payment · send contract & confirmation</button>
               <button onClick={()=>{rejectOrder(o.oid);setSel(null)}} className="w-full py-2 bg-red-50 text-red-700 border border-red-200 rounded-xl text-xs font-semibold">Reject payment</button>
             </div>:<div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2"><Check className="w-4 h-4"/>Payment {o.payState==="approved"?"approved":"processed"}{o.approvedAt?` on ${fmtDateTime(o.approvedAt)}`:""}. Contract sent.</div>}
@@ -3570,9 +3606,12 @@ function SalesPanel({user,sv,logout,t,contacts=[],setContacts,fleet=[],orders=[]
       {tab==="commissions"&&<div className="cd" style={{padding:0,overflow:"hidden"}}>
         <div style={{padding:16,borderBottom:"1px solid var(--g2)",fontWeight:700,color:"var(--navy)"}}>My reservations & commissions ({myOrders.length}) {projected>0&&<span style={{fontSize:12,fontWeight:500,color:"var(--g5)"}}>· projected pending validation: {$f(projected)}</span>}</div>
         {myOrders.length===0?<div style={{padding:40,textAlign:"center",color:"var(--g5)"}}>No reservations yet. Schedule one to start earning commission.</div>
-        :<div>{myOrders.slice().reverse().map(o=>{const comm=commissionAmount(o,commissionPolicy);const st=o.status==="Pending"?"Awaiting validation":o.status==="Cancelled"?"Rejected":o.commissionPaid?"Commission paid":"Earned (unpaid)";return <div key={o.oid} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"12px 16px",borderBottom:"1px solid var(--g1)"}}>
-          <div><div style={{fontWeight:700,fontSize:13,fontFamily:"var(--fm)"}}>{o.oid}</div><div style={{fontSize:12,color:"var(--g5)"}}>{o.un} · {o.un2} · {$(o.tp)}</div></div>
-          <div style={{textAlign:"right"}}><div style={{fontWeight:800,color:isEarned(o)?"var(--green)":"var(--g5)"}}>{$f(comm)}</div><div style={{fontSize:11,color:o.status==="Cancelled"?"var(--red)":o.status==="Pending"?"var(--orange)":o.commissionPaid?"var(--green)":"var(--b6)"}}>{st}</div></div>
+        :<div>{myOrders.slice().reverse().map(o=>{const comm=commissionAmount(o,commissionPolicy);const st=o.status==="Pending"?"Awaiting validation":o.status==="Cancelled"?"Rejected":o.commissionPaid?"Commission paid":"Earned (unpaid)";return <div key={o.oid} style={{padding:"12px 16px",borderBottom:"1px solid var(--g1)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+            <div><div style={{fontWeight:700,fontSize:13,fontFamily:"var(--fm)"}}>{o.oid}</div><div style={{fontSize:12,color:"var(--g5)"}}>{o.un} · {o.un2} · {$(o.tp)}</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontWeight:800,color:isEarned(o)?"var(--green)":"var(--g5)"}}>{$f(comm)}</div><div style={{fontSize:11,color:o.status==="Cancelled"?"var(--red)":o.status==="Pending"?"var(--orange)":o.commissionPaid?"var(--green)":"var(--b6)"}}>{st}</div></div>
+          </div>
+          {o.status==="Pending"&&<div style={{marginTop:10}}><PaymentLinkButton order={o} orders={orders}/></div>}
         </div>})}</div>}
       </div>}
     </div>
