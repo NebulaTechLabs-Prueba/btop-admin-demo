@@ -2972,7 +2972,7 @@ function SignaturePad({onSave,onClose,title="Add your signature"}){
 const stripSigPlaceholders=(s)=>String(s||"").replace(/^.*_{6,}.*$/gm,"").replace(/\n{3,}/g,"\n\n").trim();
 
 /* ─── Generate the rental contract as a real PDF with both hand-drawn signatures embedded ─── */
-function generateSignedPdf(c,{clientSig,repSig,repName,company={},clientSignedAt,repSignedAt}={}){
+function generateSignedPdf(c,{clientSig,repSig,repName,company={},clientSignedAt,repSignedAt,download=true}={}){
   const doc=new jsPDF({unit:"pt",format:"letter"});
   const PW=612,M=56,W=PW-M*2;let y=60;
   const head=()=>{doc.setFont("times","bold");doc.setTextColor(30,58,95);doc.setFontSize(15);doc.text((company.name||"BTOP RENTALS").toUpperCase(),PW/2,y,{align:"center"});y+=20;
@@ -3012,7 +3012,8 @@ function generateSignedPdf(c,{clientSig,repSig,repName,company={},clientSignedAt
   audit.forEach((ln,i)=>doc.text(ln,M,lineY+50+i*10,{maxWidth:W}));
   doc.setFontSize(7.5);doc.setTextColor(150);
   doc.text(c.footer||"",PW/2,782,{align:"center",maxWidth:W});
-  doc.save(`${c.contractNum||"agreement"}.pdf`);
+  if(download)doc.save(`${c.contractNum||"agreement"}.pdf`);
+  return doc;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -3808,8 +3809,10 @@ export default function App(){
   const contractReady=(c)=>{const w=contractPolicy.sendWhen;if(w==="none")return true;if(w==="client")return !!c.lesseeSig?.dataUrl;return !!c.lesseeSig?.dataUrl&&!!c.lessorSig?.dataUrl;};
   /* Log the agreement email (with PDF attachment) — represents the SMTP send once a backend is connected */
   const logAgreementEmail=(c)=>{setEmailLog(p=>[{id:"email-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),sentAt:nowISO(),to:c.email||"",toName:c.client||"",oid:c.oid,invoice:c.oid,subject:`Your Rental Agreement ${c.contractNum} — BTOP Rentals`,greeting:`Hi ${c.client||"Customer"},`,body:`Please find attached your fully-signed Equipment Rental Agreement (${c.contractNum}) covering order(s) ${(c.orderNumbers||[c.oid]).join(", ")}, including the itemized equipment schedule (Exhibit A).`,footer:c.footer,attachment:`${c.contractNum}.pdf`},...p]);
-    /* Correo real (Resend) del contrato — respeta el kill switch email_enabled del servidor */
-    sendEmail("rental-agreement",c.email,{client_name:c.client,contract_number:c.contractNum,download_url:"https://btop-rentals.com/"});};
+    /* Correo real (Resend) del contrato, con el PDF firmado adjunto. Respeta el kill switch email_enabled. */
+    let attachment;
+    try{const doc=generateSignedPdf(c,{clientSig:c.lesseeSig?.dataUrl,repSig:c.lessorSig?.dataUrl,repName:c.lessorSig?.name||company.repName,company,clientSignedAt:c.lesseeSig?.signedAt,repSignedAt:c.lessorSig?.signedAt,download:false});attachment={filename:`${c.contractNum||"agreement"}.pdf`,content:doc.output("datauristring").split(",")[1]};}catch(e){}
+    sendEmail("rental-agreement",c.email,{client_name:c.client,contract_number:c.contractNum,download_url:"https://btop-rentals.com/"},attachment);};
   /* One contract per CART/purchase (orders sharing gid). Lessee signature stamped from checkout; Lessor signed later by admin.
      The agreement is only "sent" (emailed) when it satisfies the configured signing policy. */
   const sendContract=(groupOrders)=>{
