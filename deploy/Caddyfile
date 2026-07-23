@@ -11,7 +11,20 @@ www.btop-rentals.com {
 
 btop-rentals.com {
 	encode gzip zstd
-	reverse_proxy localhost:3000
+
+	# Webhook de pagos bajo el dominio propio (oculta el proveedor del backend).
+	# Reenvía el cuerpo tal cual (la verificación de firma del pago necesita el raw body).
+	handle /api/stripe/webhook {
+		rewrite * /functions/v1/stripe-webhook
+		reverse_proxy https://onpvhedeinpsggdanylg.supabase.co {
+			header_up Host onpvhedeinpsggdanylg.supabase.co
+		}
+	}
+
+	# App
+	handle {
+		reverse_proxy localhost:3000
+	}
 
 	# Cabeceras de seguridad básicas
 	header {
