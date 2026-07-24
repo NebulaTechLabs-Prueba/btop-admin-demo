@@ -3875,7 +3875,7 @@ export default function App(){
   const [fleetBookings,setFleetBookings]=useState([]);
   const [deliveries,setDeliveries]=useCollection("deliveries",{pk:"id",authKey:user?.email,seed:[]});
   const [messages,setMessages]=useCollection("messages",{pk:"id",authKey:user?.email,keyCols:m=>({from_name:m.name,from_email:m.email}),seed:[]});
-  const addMessage=(m)=>setMessages(p=>[{...m,id:"m"+Date.now(),date:new Date().toISOString().split("T")[0],read:false},...p]);
+  const addMessage=(m)=>setMessages(p=>[{...m,id:nid(),date:new Date().toISOString().split("T")[0],read:false},...p]);
   const [toast,setToast]=useState(null);
 
   const t=(msg,type="success")=>{setToast({msg,type});setTimeout(()=>setToast(null),3000)};
