@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { jsPDF } from "jspdf";
-import { usePersistentState, useRemoteState } from "./src/lib/persistence.js";
+import { usePersistentState } from "./src/lib/persistence.js";
 import { loadFleetUnits, loadSpaces, loadProfiles, syncFleetUnits, syncSpaces } from "./src/lib/catalog.js";
 import { supabase, isSupabaseConfigured } from "./src/lib/supabase.js";
 import { sendEmail } from "./src/lib/email.js";
 import { useCollection, useSetting, useEmailMap } from "./src/lib/collection.js";
 import {
-  Plus, Search, Pencil, Trash2, Eye, EyeOff, X as Xx, Check, MapPin, Star, Clock, Users,
-  LayoutDashboard, CreditCard, UserCog, Settings, Bell, ChevronDown, ChevronRight,
+  Plus, Search, Pencil, Trash2, Eye, EyeOff, X as Xx, Check, MapPin, Clock, Users,
+  LayoutDashboard, CreditCard, UserCog, Settings, Bell, ChevronRight,
   BarChart3, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Phone, Mail,
   MoreHorizontal, Shield, Globe, AlertTriangle, Calendar, Truck, Warehouse, Package,
-  DollarSign, FileText, Power, Wrench, Activity, Download, CircleDot, Fuel, ImagePlus,
-  Save, Tag, Info, Gauge, Droplets, FileCheck, Zap, Lock, Upload, LogOut, Contact, Link2,
+  DollarSign, FileText, Wrench, Activity, Download, CircleDot, Fuel, ImagePlus,
+  Save, Tag, Info, Gauge, Droplets, FileCheck, Lock, Upload, LogOut, Contact,
 } from "lucide-react";
 
 /* ─── DATA ─── */
@@ -5530,7 +5530,7 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all
   const tabs=[["info","My Info","user"],["company","Company","list"],["payments","Payments","dol"],["rentals","Rentals","truck"],["docs","Documents","list"],["security","Security","shield"],["notifs","Notifications","mail"]];
   const active=orders.filter(o=>["Reserved","Confirmed","Active","Delivered","Pending"].includes(o.status));
   const past=orders.filter(o=>["Completed","Returned","Cancelled"].includes(o.status));
-  const getStatusStyle=(s)=>({Reserved:{bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B",label:"Reserved"},Confirmed:{bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6",label:"Confirmed"},Active:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Active"},Delivered:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Active"},Pending:{bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B",label:"In Process"},Active:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Active"},Completed:{bg:"#F3F4F6",color:"#374151",dot:"#6B7280",label:"Completed"},Cancelled:{bg:"#FEE2E2",color:"#991B1B",dot:"#DC2626",label:"Cancelled"}}[s]||{bg:"#F3F4F6",color:"#374151",dot:"#6B7280",label:s});
+  const getStatusStyle=(s)=>({Reserved:{bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B",label:"Reserved"},Confirmed:{bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6",label:"Confirmed"},Active:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Active"},Delivered:{bg:"#D1FAE5",color:"#065F46",dot:"#10b981",label:"Active"},Pending:{bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B",label:"In Process"},Completed:{bg:"#F3F4F6",color:"#374151",dot:"#6B7280",label:"Completed"},Cancelled:{bg:"#FEE2E2",color:"#991B1B",dot:"#DC2626",label:"Cancelled"}}[s]||{bg:"#F3F4F6",color:"#374151",dot:"#6B7280",label:s});
 
   return <div className="fi" style={{padding:"40px 24px 100px"}}><div style={{maxWidth:1100,margin:"0 auto"}}>
     {/* PROFILE HEADER */}
