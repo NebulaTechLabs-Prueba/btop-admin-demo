@@ -5349,8 +5349,8 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
   };
   const [users,setUsers]=useState([]);
   const [roles,setRoles]=useState(admSeedRoles);
-  /* Lista de usuarios desde Supabase (profiles) — reemplaza el seed hardcoded */
-  useEffect(()=>{if(!supabase)return;loadProfiles().then(ps=>{if(ps)setUsers(ps.map(p=>({id:p.email,name:p.name,email:p.email,role:p.role==="admin"?"Super Admin":p.role==="sede"?"Fleet Manager":p.role==="sales"?"Sales Rep":"Client",status:"active",last:"—",initials:(p.name||p.email).slice(0,2).toUpperCase()})))}).catch(()=>{})},[]);
+  /* Lista de STAFF desde Supabase (profiles). Los clientes se gestionan en Contacts, no aquí. */
+  useEffect(()=>{if(!supabase)return;loadProfiles().then(ps=>{if(ps)setUsers(ps.filter(p=>p.role!=="client").map(p=>({id:p.email,name:p.name,email:p.email,role:p.role==="admin"?"Super Admin":p.role==="sede"?"Fleet Manager":p.role==="sales"?"Sales Rep":p.role,status:"active",last:"—",initials:(p.name||p.email).slice(0,2).toUpperCase()})))}).catch(()=>{})},[]);
   const [gateways,setGateways]=useSetting("payment_gateways",{
     stripe:{connected:false,pubKey:"",secretKey:"",webhookSecret:"",mode:"test"},
     zelle:{enabled:true,email:"btoprentals@gmail.com",instructions:"Send your Zelle transfer and upload the receipt for verification."},
