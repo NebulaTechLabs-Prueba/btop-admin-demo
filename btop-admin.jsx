@@ -2674,7 +2674,10 @@ function ConfigMod({gateways,setGateways,hours,setHours,alarmEnabled,setAlarmEna
       </SC>
 
       {/* SECURITY */}
-      <SC title="Security"><div className="space-y-3">{[{l:"Session Timeout (30m)",on:true}].map(s=>(<div key={s.l} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0"><span className="text-sm font-medium">{s.l}</span><div className={`w-10 h-6 rounded-full flex items-center px-0.5 cursor-pointer ${s.on?"bg-emerald-500":"bg-stone-300"}`}><div className={`w-5 h-5 bg-white rounded-full shadow-sm ${s.on?"translate-x-4":""}`}/></div></div>))}</div></SC>
+      <SC title="Security"><div className="flex items-center justify-between py-2 gap-4">
+        <div><div className="text-sm font-medium">Session security</div><div className="text-xs text-stone-500 mt-0.5">Sign-in sessions are secured by the authentication provider with automatic token expiry. Each account signs out independently, and access is enforced per role.</div></div>
+        <span className="shrink-0 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">Active</span>
+      </div></SC>
 
     </div>
   );
