@@ -1267,7 +1267,7 @@ function ReservationsMod({orders,setOrders,fleetBookings=[],emailTemplate,setEma
             <div className="text-xs font-bold uppercase tracking-wider text-stone-500 mb-3">📧 Live Preview</div>
             {previewRender&&<div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
               <div className="px-5 py-3 border-b border-stone-200 bg-stone-50">
-                <div className="text-[11px] text-stone-400">From: BTOP Rentals &lt;noreply@btop.com&gt;</div>
+                <div className="text-[11px] text-stone-400">From: BTOP Rentals &lt;no-reply@btop-rentals.com&gt;</div>
                 <div className="text-[11px] text-stone-400">To: {previewSrc.un} &lt;{previewSrc.ue}&gt;</div>
                 <div className="font-bold text-sm mt-1">{previewRender.subject}</div>
               </div>
