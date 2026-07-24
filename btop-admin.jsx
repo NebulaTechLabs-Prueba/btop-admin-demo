@@ -3871,6 +3871,9 @@ export default function App(){
   /* Client's preferred deposit-return method (visible to admin; final method may still be agreed at return time) */
   const [depositReturnAll,setDepositReturnAll]=useEmailMap("deposit_preferences",user?.email);
   const depositReturnPref=user?(depositReturnAll[user.email]||{method:"bank",bankName:"",routingNumber:"",accountNumber:"",zelleEmail:""}):null;
+  const [clientProfilesAll,setClientProfilesAll]=useEmailMap("client_profiles",user?.email);
+  const clientProfile=user?(clientProfilesAll[user.email]||null):null;
+  const saveClientProfile=(p)=>{if(user)setClientProfilesAll(m=>({...m,[user.email]:p}));};
   const setDepositReturnPref=(updater)=>{if(!user)return;setDepositReturnAll(prev=>{const cur=prev[user.email]||{method:"bank"};const next=typeof updater==="function"?updater(cur):updater;return{...prev,[user.email]:next}})};
   const [creditLines,setCreditLines]=useCollection("credit_lines",{pk:"id",authKey:user?.email,keyCols:c=>({client_name:c.clientName,email:c.email}),seed:[]});
   const [orders,setOrders]=useCollection("orders",{pk:"oid",authKey:user?.email,keyCols:o=>({customer_email:o.ue,status:o.status,sales_rep:o.salesRep,gid:o.gid,inv_num:o.invNum}),seed:[]});
@@ -4270,7 +4273,7 @@ body{font-family:var(--f);background:var(--g0);color:var(--g9)}input,select,text
       </div>}
       {view==="invite"&&<InvitePage invite={invites.find(i=>i.token===inviteToken)} onAccept={(pw)=>{if(acceptInvite(inviteToken,pw))setView("client")}} sv={setView}/>}
       {view==="checkout"&&user&&<CheckoutPage cart={cart} rmCart={rmCart} cTotal={cTotal} user={user} confirm={confirmOrder} cancel={()=>setView("home")} sv={setView} company={company} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} creditUsed={orders.filter(o=>(o.payMethod==="credit"||o.payMethod==="invoice")&&o.ue===user.email&&o.status!=="Cancelled"&&!o.settlementPaid).reduce((s,o)=>s+(o.tp||0),0)} savedPays={savedPays} mySignature={mySignature} saveMySignature={saveMySignature}/>}
-      {view==="client"&&user?.role==="client"&&<Cl orders={orders.filter(o=>o.ue===user.email)} sv={setView} user={user} contacts={contacts} setContacts={setContacts} logout={logout} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} orders_all={orders} savedPays={savedPays} setSavedPays={setSavedPays} t={t} clientDocs={clientDocs} addClientDoc={addClientDoc} removeClientDoc={removeClientDoc} depositReturnPref={depositReturnPref} setDepositReturnPref={setDepositReturnPref} mySignature={mySignature} saveMySignature={saveMySignature}/>}
+      {view==="client"&&user?.role==="client"&&<Cl orders={orders.filter(o=>o.ue===user.email)} sv={setView} user={user} contacts={contacts} setContacts={setContacts} logout={logout} creditLine={creditLines.find(c=>c.active&&c.email===user.email)} orders_all={orders} savedPays={savedPays} setSavedPays={setSavedPays} t={t} clientDocs={clientDocs} addClientDoc={addClientDoc} removeClientDoc={removeClientDoc} depositReturnPref={depositReturnPref} setDepositReturnPref={setDepositReturnPref} mySignature={mySignature} saveMySignature={saveMySignature} clientProfile={clientProfile} saveClientProfile={saveClientProfile}/>}
     </main>
 
     {/* SLIDE-OUT CART */}
@@ -5488,7 +5491,7 @@ function Ad({sv,sf:appSetFleet,spaces,setSpaces,contacts,setContacts,messages,se
   );
 }
 
-function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all=[],savedPays=[],setSavedPays,t,clientDocs=[],addClientDoc,removeClientDoc,depositReturnPref,setDepositReturnPref,mySignature,saveMySignature}){
+function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all=[],savedPays=[],setSavedPays,t,clientDocs=[],addClientDoc,removeClientDoc,depositReturnPref,setDepositReturnPref,mySignature,saveMySignature,clientProfile,saveClientProfile}){
   const [tab,sTab]=useState("info");
   const [editing,sEditing]=useState(false);
   const [prof,sProf]=useState({
@@ -5514,6 +5517,9 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all
   const [delModal,setDelModal]=useState(false);
   const [delConfirmEmail,setDelConfirmEmail]=useState("");
 
+  /* Hidrata el perfil guardado en Supabase (una vez, sin pisar ediciones en curso) */
+  const profHydrated=useRef(false);
+  useEffect(()=>{if(clientProfile&&!profHydrated.current&&!editing){profHydrated.current=true;sProf(p=>({...p,...clientProfile}));}},[clientProfile,editing]);
   const upProf=useCallback((k,v)=>sProf(p=>({...p,[k]:v})),[]);
   const togglePay=(id)=>sPays(p=>p.map(m=>({...m,isDefault:m.id===id})));
   const rmPay=(id)=>sPays(p=>p.filter(m=>m.id!==id));
@@ -5581,7 +5587,7 @@ function Cl({orders,sv,user,contacts=[],setContacts,logout,creditLine,orders_all
       {tab==="info"&&<div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
           <h2 style={{fontWeight:800,fontSize:20,color:"var(--navy)"}}>Personal Information</h2>
-          <button onClick={()=>sEditing(!editing)} className="btn bsm" style={{background:editing?"var(--green)":"var(--b0)",color:editing?"#fff":"var(--b7)",border:editing?"none":"1px solid var(--b1)"}}><X n={editing?"ok":"edit"} s={14}/>{editing?"Save":"Edit"}</button>
+          <button onClick={()=>{if(editing&&saveClientProfile){saveClientProfile(prof);t&&t("Profile saved","success");}sEditing(!editing);}} className="btn bsm" style={{background:editing?"var(--green)":"var(--b0)",color:editing?"#fff":"var(--b7)",border:editing?"none":"1px solid var(--b1)"}}><X n={editing?"ok":"edit"} s={14}/>{editing?"Save":"Edit"}</button>
         </div>
         <S l="Basic Details">
           <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
