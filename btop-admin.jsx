@@ -1009,12 +1009,11 @@ function ReservationsMod({orders,setOrders,fleetBookings=[],emailTemplate,setEma
   const confirmAndEmail=(o)=>{
     updateStatus(o.oid,"Confirmed");
     setSel({...o,status:"Confirmed"});
-    if(sendConfirmationEmail){
-      const entry=sendConfirmationEmail({...o,status:"Confirmed"});
-      if(entry)setEmailPreview(entry);
-    }
-    /* Correo real (Resend) de reserva confirmada */
-    sendEmail("reservation-confirmed",o.ue,{client_name:o.un,order_number:o.invNum||o.oid,item:o.un2||o.un,start:typeof o.sd==="string"?o.sd:"",end:typeof o.ed==="string"?o.ed:"",total:$f((o.tp||0)+(o.dp||0))});
+    const co={...o,status:"Confirmed"};
+    const entry=sendConfirmationEmail?sendConfirmationEmail(co):null;
+    if(entry)setEmailPreview(entry);
+    /* Correo real (Resend). Usa la plantilla editada por el admin (asunto/saludo/cuerpo) dentro del diseño branded. */
+    sendEmail("reservation-confirmed",o.ue,{client_name:o.un,order_number:o.invNum||o.oid,item:o.un2||o.un,start:typeof o.sd==="string"?o.sd:"",end:typeof o.ed==="string"?o.ed:"",total:$f((o.tp||0)+(o.dp||0)),custom_subject:entry?.subject,custom_greeting:entry?.greeting,custom_body:entry?.body});
   };
   /* Check if this reservation's slot is still free (among bookings + other live orders) */
   const slotBusy=(o)=>{
