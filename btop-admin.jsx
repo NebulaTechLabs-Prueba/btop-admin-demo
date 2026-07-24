@@ -3325,7 +3325,7 @@ function CreditMod({creditLines,setCreditLines,orders,contacts=[]}){
   const hasAccount=!!matchedClient?.hasAccount;
   const canGrant=!!matchedClient&&hasAccount&&!!form.limit;
   /* Autocomplete: typing a client name auto-fills email (and vice-versa) */
-  const onName=(v)=>{const m=contacts.find(c=>c.name===v);setForm(f=>({...f,clientName:v,email:m?m.email:f.email}))};
+  const onName=(v)=>{const q=v.trim().toLowerCase();const m=contacts.find(c=>c.name===v||(c.email||"").toLowerCase()===q);setForm(f=>({...f,clientName:m?m.name:v,email:m?m.email:f.email}))};
   const onEmail=(v)=>{const m=contacts.find(c=>c.email.toLowerCase()===v.trim().toLowerCase());setForm(f=>({...f,email:v,clientName:m?m.name:f.clientName}))};
   const grant=()=>{
     if(!canGrant)return;
@@ -3394,7 +3394,7 @@ function CreditMod({creditLines,setCreditLines,orders,contacts=[]}){
     {/* OVERDUE */}
     <div className="mt-6">
       <SC title={`Overdue customers (${overdue.length})`} padded={false}>
-        {overdue.length===0?<div className="text-center py-12 text-stone-400"><Check className="w-8 h-8 mx-auto mb-2 text-emerald-500"/><p className="text-sm">No late payments 🎉</p></div>
+        {overdue.length===0?<div className="text-center py-12 text-stone-400"><Check className="w-8 h-8 mx-auto mb-2 text-emerald-500"/><p className="text-sm">No late payments</p></div>
         :<DT headers={["Order #","Client","Amount","Was due","Days overdue"]} rows={overdue.map(o=>[
           <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded">{o.oid}</span>,
           <div><div className="font-semibold text-sm">{o.un}</div><div className="text-[10px] text-stone-400">{o.ue}</div></div>,
@@ -3436,7 +3436,7 @@ function ContractsMod({contracts,setContracts,contractTpl,setContractTpl,signatu
     ["payment_method","Payment Method"],["items","Equipment List (Exhibit A)"],
   ];
   return <div>
-    <p className="text-stone-600 text-sm mb-5">Rental agreements are generated automatically and emailed to the client <strong>the moment the admin approves payment</strong>. Each agreement includes the itemized list of products/equipment from the order (Exhibit A) and can be saved as a PDF.</p>
+    <p className="text-stone-600 text-sm mb-5">Auto-generated and emailed <strong>when the admin approves payment</strong> — itemized by order (Exhibit A) and downloadable as PDF.</p>
     <div className="flex items-center gap-1 bg-white border border-stone-200 rounded-full p-1 mb-6 w-fit">
       {[["list","Issued contracts"],["tpl","Template"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className={`px-4 py-2 rounded-full text-sm font-medium ${tab===k?"bg-blue-900 text-white":"text-stone-600"}`}>{l}</button>)}
     </div>
